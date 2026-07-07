@@ -1,0 +1,1632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TaskFlow · Store View</title>
+    <link rel="icon" type="image/png" href="LOGO.jpg" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="/icon-192.png" />
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+            background: url('https://i.pinimg.com/1200x/2e/02/76/2e0276893b4bc728337737876e431880.jpg') no-repeat center center fixed;
+            background-size: cover;
+            color: #2d2a4a;
+            padding-bottom: 2rem;
+            min-height: 100vh;
+            backdrop-filter: brightness(0.96) saturate(1.1);
+        }
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at 30% 40%, rgba(230, 200, 255, 0.15), rgba(255, 200, 220, 0.10) 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #b8a9d4 0%, #d4b5d6 100%);
+            padding: 0.8rem 2rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12), 0 0 0 1px rgba(200, 180, 230, 0.3);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 2px solid #f0c4d9;
+        }
+        .nav-content {
+            max-width: 1440px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .logo {
+            color: #3d2c5e;
+            font-size: 1.4rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-shadow: 0 2px 8px rgba(255, 255, 255, 0.3);
+        }
+        .logo i { color: #f0a8c4; filter: drop-shadow(0 0 4px #f8c8dc); }
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(210, 180, 230, 0.3);
+            color: #3d2c5e;
+            padding: 0.4rem 1rem;
+            border-radius: 40px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            backdrop-filter: blur(2px);
+        }
+        .nav-btn:hover {
+            background: rgba(255, 200, 220, 0.4);
+            color: #2d1a4a;
+            transform: translateY(-2px) scale(1.02);
+            border-color: #f0a8c4;
+            box-shadow: 0 4px 12px rgba(240, 168, 196, 0.3);
+        }
+        .nav-btn.active {
+            background: #f0a8c4;
+            color: #2d1a4a;
+            border-color: #f8c8dc;
+            box-shadow: 0 2px 16px rgba(240, 168, 196, 0.4);
+            font-weight: 600;
+        }
+        .notification-badge {
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            padding: 0.1rem 0.4rem;
+            font-size: 0.6rem;
+            font-weight: 700;
+            margin-left: 0.2rem;
+            min-width: 18px;
+            text-align: center;
+        }
+        .container {
+            max-width: 1440px;
+            margin: 1.5rem auto;
+            padding: 0 1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.80);
+            backdrop-filter: blur(10px);
+            border-radius: 28px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.06), 0 0 0 1px rgba(210, 180, 230, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .card:hover { box-shadow: 0 12px 40px rgba(0,0,0,0.10), 0 0 0 1px #f0a8c4; }
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #3d2c5e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .card-title i { color: #f0a8c4; filter: drop-shadow(0 0 2px rgba(240, 168, 196, 0.3)); }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 1.2rem;
+            margin-bottom: 1.2rem;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(6px);
+            padding: 1.2rem 1rem;
+            border-radius: 24px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            border: 1px solid rgba(210, 180, 230, 0.2);
+            transition: 0.15s;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .stat-card:hover { border-color: #f0a8c4; transform: scale(1.02); background: rgba(255, 255, 255, 0.88); }
+        .stat-number { font-size: 2rem; font-weight: 700; color: #3d2c5e; line-height: 1.2; }
+        .stat-label { color: #5b4a7a; font-size: 0.8rem; margin-top: 0.2rem; letter-spacing: 0.3px; text-transform: uppercase; }
+        .stat-card .icon-wrap { align-self: flex-end; font-size: 1.4rem; opacity: 0.25; margin-top: -0.2rem; color: #f0a8c4; }
+        .stat-progress {
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .stat-progress .progress-container {
+            flex: 1;
+            width: auto;
+        }
+        .stat-progress .progress-percent {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #3d2c5e;
+            min-width: 40px;
+            text-align: right;
+        }
+        .dash-row-1 { grid-column: 1 / 5; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.2rem; }
+        .dash-row-2 { grid-column: 1 / 5; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.2rem; }
+        .profile-card {
+            grid-column: 3 / 4;
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(6px);
+            border-radius: 24px;
+            border: 1px solid rgba(210, 180, 230, 0.2);
+            padding: 0.8rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(220, 190, 240, 0.4));
+        }
+        .profile-card img { max-width: 100%; height: auto; border-radius: 18px; max-height: 110px; object-fit: cover; box-shadow: 0 4px 16px rgba(0,0,0,0.06); border: 2px solid #f0a8c4; }
+        .analytics-sm { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; max-width: 460px; }
+        .analytics-sm canvas { max-height: 130px; max-width: 100%; }
+        .bulletin-board { display: flex; flex-wrap: wrap; gap: 1rem; padding: 0.5rem 0 0.2rem; }
+        .sticky-note {
+            background: #fce4ec;
+            padding: 1rem 1rem 0.8rem;
+            border-radius: 16px 16px 16px 4px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.06), 0 0 0 1px rgba(210, 180, 230, 0.1);
+            width: 220px;
+            min-height: 140px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 1px solid rgba(240, 168, 196, 0.2);
+            transition: 0.15s;
+            transform: rotate(var(--rot, 0deg));
+            backdrop-filter: blur(2px);
+        }
+        .sticky-note:nth-child(odd) { --rot: -1.5deg; background: #fce4ec; }
+        .sticky-note:nth-child(3n) { --rot: 2.5deg; background: #e8e0f0; }
+        .sticky-note:nth-child(5n) { --rot: -2deg; background: #dce8f5; }
+        .sticky-note:hover { transform: scale(1.02) rotate(0deg); box-shadow: 0 8px 28px rgba(0,0,0,0.08); border-color: #f0a8c4; }
+        .sticky-note .note-content { font-size: 0.9rem; line-height: 1.4; color: #2d2a4a; word-break: break-word; flex:1; }
+        .sticky-note .note-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.5rem;
+            font-size: 0.65rem;
+            color: #5b4a7a;
+            border-top: 1px solid rgba(0,0,0,0.04);
+            padding-top: 0.4rem;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+        }
+        .sticky-note .note-badge {
+            background: rgba(240, 168, 196, 0.2);
+            padding: 0.1rem 0.6rem;
+            border-radius: 30px;
+            font-size: 0.6rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #3d2c5e;
+        }
+        .sticky-note .note-actions { display: flex; gap: 0.3rem; }
+        .sticky-note .note-actions button {
+            background: rgba(0,0,0,0.03);
+            border: none;
+            border-radius: 30px;
+            padding: 0.1rem 0.5rem;
+            font-size: 0.6rem;
+            cursor: pointer;
+            transition: 0.1s;
+            color: #5b4a7a;
+        }
+        .sticky-note .note-actions button:hover { background: rgba(240, 168, 196, 0.2); }
+        .sticky-note .note-actions .edit-note:hover { color: #3d2c5e; }
+        .sticky-note .note-actions .delete-note:hover { color: #b91c1c; }
+        .empty-state { text-align: center; padding: 1.5rem 0; color: #5b4a7a; }
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { background: rgba(210, 180, 230, 0.15); padding: 0.6rem 0.8rem; text-align: left; font-weight: 600; border-bottom: 2px solid #f0a8c4; }
+        td { padding: 0.6rem 0.8rem; border-bottom: 1px solid rgba(210, 180, 230, 0.1); }
+        tr:hover { background: rgba(240, 168, 196, 0.08); }
+        .badge {
+            padding: 0.2rem 0.7rem;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            display: inline-block;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .badge-pending { background: #fce4ec; color: #7a3a5a; }
+        .badge-inprogress { background: #dce8f5; color: #3d5a7a; }
+        .badge-completed { background: #d1fae5; color: #065f46; }
+        .priority-high { color: #a31515; font-weight: 600; }
+        .priority-medium { color: #a1580c; font-weight: 600; }
+        .priority-low { color: #3d5a7a; font-weight: 600; }
+        .overdue { background: rgba(254, 202, 202, 0.35) !important; border-left: 3px solid #ef4444; }
+        .due-date { color: #b91c1c; font-weight: 600; }
+        .progress-container {
+            width: 80px;
+            background: rgba(0,0,0,0.06);
+            border-radius: 40px;
+            height: 6px;
+            overflow: hidden;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .progress-bar { height: 100%; border-radius: 40px; background: #f0a8c4; transition: width 0.5s ease; }
+        .btn {
+            padding: 0.3rem 1rem;
+            border: none;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.15s;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            backdrop-filter: blur(4px);
+        }
+        .btn-primary { background: #f0a8c4; color: #2d1a4a; font-weight: 600; }
+        .btn-primary:hover { background: #f8c8dc; transform: scale(1.02); box-shadow: 0 4px 12px rgba(240, 168, 196, 0.4); }
+        .btn-success { background: #34d399; color: #0f172a; }
+        .btn-danger { background: #f87171; color: white; }
+        .btn-warning { background: #fbbf24; color: #0f172a; }
+        .btn-sm { padding: 0.15rem 0.6rem; font-size: 0.7rem; }
+        .btn-outline { background: rgba(255,255,255,0.5); border: 1px solid #f0a8c4; color: #3d2c5e; }
+        .btn-outline:hover { background: rgba(240, 168, 196, 0.2); }
+        .btn-outline.active { background: #f0a8c4; color: #2d1a4a; border-color: #f0a8c4; }
+        .modal {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.2); backdrop-filter: blur(6px);
+            z-index: 2000; justify-content: center; align-items: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.88);
+            backdrop-filter: blur(12px);
+            padding: 1.8rem; border-radius: 32px;
+            max-width: 560px; width: 92%; max-height: 90vh; overflow-y: auto;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.08), 0 0 0 2px rgba(210, 180, 230, 0.2);
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+        .modal-close { background: none; border: none; font-size: 1.6rem; cursor: pointer; color: #5b4a7a; }
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-weight: 500; font-size: 0.85rem; color: #3d2c5e; margin-bottom: 0.2rem; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 0.5rem 0.8rem; border: 1px solid #d4c0d8; border-radius: 16px;
+            font-size: 0.9rem; background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+        }
+        .form-group textarea { min-height: 70px; resize: vertical; }
+        .view { display: none; }
+        .view.active { display: block; }
+        .tab-buttons { display: flex; gap: 0.5rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+        .tab-btn {
+            padding: 0.3rem 1.2rem; border: 1px solid #f0a8c4; background: rgba(255,255,255,0.5);
+            border-radius: 40px; cursor: pointer; font-size: 0.8rem; backdrop-filter: blur(4px);
+        }
+        .tab-btn.active { background: #f0a8c4; color: #2d1a4a; border-color: #f0a8c4; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .log-entry { padding: 0.4rem 0; border-bottom: 1px solid rgba(210, 180, 230, 0.1); font-size: 0.85rem; }
+        .log-action { font-weight: 600; color: #3d2c5e; }
+        .log-time { color: #5b4a7a; font-size: 0.7rem; }
+        .password-protected { background: rgba(254, 202, 202, 0.25); padding: 0.3rem 0.8rem; border-radius: 40px; color: #991b1b; font-size: 0.75rem; margin-bottom: 0.8rem; display: inline-block; backdrop-filter: blur(4px); border: 1px solid #f87171; }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 2px;
+            background: rgba(210, 180, 230, 0.15);
+            border-radius: 16px;
+            overflow: hidden;
+            backdrop-filter: blur(4px);
+        }
+        .calendar-header {
+            background: rgba(240, 168, 196, 0.2);
+            padding: 0.5rem;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.75rem;
+            color: #3d2c5e;
+        }
+        .calendar-day {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+            padding: 0.3rem;
+            min-height: 70px;
+            position: relative;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .calendar-day:hover { background: rgba(240, 168, 196, 0.15); }
+        .calendar-day .day-number { font-size: 0.8rem; font-weight: 500; color: #2d2a4a; }
+        .calendar-day .day-tasks { font-size: 0.6rem; margin-top: 0.2rem; }
+        .calendar-day .day-tasks .task-item {
+            padding: 0.05rem 0.2rem;
+            margin-bottom: 0.05rem;
+            border-radius: 3px;
+            font-size: 0.55rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+        }
+        .calendar-day .day-tasks .task-item.completed { background: #d1fae5; border-left: 2px solid #34d399; }
+        .calendar-day .day-tasks .task-item.pending { background: #fef3c7; border-left: 2px solid #fbbf24; }
+        .calendar-day .day-tasks .task-item.inprogress { background: #dbeafe; border-left: 2px solid #60a5fa; }
+        .calendar-day .day-tasks .task-item.overdue { background: #fef2f2; border-left: 2px solid #ef4444; }
+        .calendar-day .day-tasks .task-more {
+            font-size: 0.5rem;
+            color: #5b4a7a;
+            cursor: pointer;
+            padding: 0.05rem 0.2rem;
+            background: rgba(0,0,0,0.03);
+            border-radius: 3px;
+            text-align: center;
+        }
+        .calendar-day .day-tasks .task-more:hover { background: rgba(0,0,0,0.06); }
+        .calendar-day.empty { background: rgba(255,255,255,0.25); }
+        .calendar-day.today { border: 2px solid #f0a8c4; }
+        .calendar-day.has-tasks { background: rgba(240, 168, 196, 0.12); }
+        .calendar-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .calendar-nav h3 { font-size: 1.1rem; font-weight: 600; color: #3d2c5e; }
+        .notification-panel {
+            position: fixed;
+            top: 70px;
+            right: -380px;
+            width: 360px;
+            max-height: 80vh;
+            background: rgba(255, 255, 255, 0.90);
+            backdrop-filter: blur(12px);
+            border-radius: 24px 0 0 24px;
+            box-shadow: -4px 0 32px rgba(0,0,0,0.08);
+            transition: right 0.3s ease;
+            z-index: 1500;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            border-left: 3px solid #f0a8c4;
+        }
+        .notification-panel.open { right: 0; }
+        .notification-panel-header {
+            padding: 1rem;
+            border-bottom: 1px solid rgba(210, 180, 230, 0.15);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.5);
+        }
+        .notification-panel-header h4 { font-weight: 600; color: #3d2c5e; }
+        .notification-panel-body { overflow-y: auto; padding: 0.5rem; flex: 1; }
+        .notification-item {
+            padding: 0.6rem 0.8rem;
+            border-radius: 16px;
+            margin-bottom: 0.3rem;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(4px);
+            border-left: 3px solid #f0a8c4;
+            font-size: 0.85rem;
+        }
+        .notification-item .notif-time { font-size: 0.65rem; color: #5b4a7a; }
+        .notification-item.unread { background: rgba(240, 168, 196, 0.12); border-left-color: #f0a8c4; }
+        .notification-item .notif-dismiss { float: right; background: none; border: none; color: #5b4a7a; cursor: pointer; }
+        .notification-item .notif-dismiss:hover { color: #b91c1c; }
+        .notif-empty { text-align: center; padding: 2rem; color: #5b4a7a; }
+        .notif-badge {
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            padding: 0.05rem 0.4rem;
+            font-size: 0.6rem;
+            font-weight: 700;
+            min-width: 18px;
+            text-align: center;
+            margin-left: 0.2rem;
+        }
+        .task-filter-btns { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+        .task-filter-btns .btn { font-size: 0.7rem; padding: 0.2rem 0.8rem; }
+        .store-button-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin: 0.8rem 0 0.2rem;
+        }
+        .store-btn {
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(4px);
+            border: 1.5px solid rgba(210,180,230,0.3);
+            padding: 0.4rem 1.2rem;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: #3d2c5e;
+            cursor: pointer;
+            transition: 0.15s;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .store-btn:hover { background: rgba(240,168,196,0.15); border-color: #f0a8c4; transform: translateY(-1px); }
+        .store-btn.active {
+            background: #f0a8c4;
+            border-color: #f0a8c4;
+            color: #2d1a4a;
+            box-shadow: 0 2px 12px rgba(240,168,196,0.3);
+        }
+        .store-btn .badge-count {
+            background: rgba(0,0,0,0.08);
+            border-radius: 20px;
+            padding: 0 0.4rem;
+            font-size: 0.6rem;
+            font-weight: 600;
+        }
+        .store-detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid rgba(210,180,230,0.2);
+        }
+        .store-detail-header h3 { font-size: 1.2rem; color: #3d2c5e; }
+        .store-detail-meta { display: flex; gap: 1.2rem; font-size: 0.85rem; color: #5b4a7a; }
+        .store-detail-meta span { background: rgba(240,168,196,0.1); padding: 0.15rem 0.8rem; border-radius: 30px; }
+        .store-analytics-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-bottom: 1.2rem;
+        }
+        .store-stats-box {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.4rem 1.2rem;
+            flex: 1;
+        }
+        .stat-item { display: flex; justify-content: space-between; padding: 0.2rem 0; border-bottom: 1px dashed rgba(210,180,230,0.2); }
+        .stat-label-sm { font-size: 0.75rem; color: #5b4a7a; }
+        .stat-value { font-weight: 600; color: #2d2a4a; }
+        .performance-section {
+            margin: 1rem 0;
+            background: rgba(240,168,196,0.04);
+            border-radius: 20px;
+            padding: 1rem;
+            border: 1px solid rgba(210,180,230,0.1);
+        }
+        .performance-section h4 { margin-bottom: 0.6rem; color: #3d2c5e; }
+        .performance-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 0.6rem;
+        }
+        .perf-card {
+            background: rgba(255,255,255,0.5);
+            backdrop-filter: blur(4px);
+            border-radius: 16px;
+            padding: 0.6rem 0.8rem;
+            border-left: 3px solid #f0a8c4;
+        }
+        .perf-card .perf-name { font-weight: 600; color: #2d2a4a; }
+        .perf-card .perf-stats { font-size: 0.7rem; color: #5b4a7a; display: flex; gap: 0.8rem; flex-wrap: wrap; margin-top: 0.15rem; }
+        .perf-card .perf-stats span { background: rgba(0,0,0,0.04); padding: 0 0.4rem; border-radius: 12px; }
+        .perf-card .perf-rate { font-weight: 600; font-size: 0.8rem; color: #3d2c5e; }
+        .loading { text-align: center; padding: 2rem; }
+        .spinner { border: 4px solid rgba(210, 180, 230, 0.2); border-top: 4px solid #f0a8c4; border-radius: 50%; width: 36px; height: 36px; animation: spin 0.8s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .error-message { background: rgba(254, 202, 202, 0.6); backdrop-filter: blur(8px); border: 1px solid #f87171; color: #991b1b; padding: 0.8rem 1rem; border-radius: 20px; }
+        .toast {
+            position: fixed; bottom: 2rem; right: 2rem; padding: 0.8rem 1.5rem;
+            border-radius: 24px; color: #2d1a4a; font-weight: 500; z-index: 3000;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08); animation: slideUp 0.3s ease;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(210, 180, 230, 0.2);
+        }
+        .toast-success { background: rgba(52, 211, 153, 0.85); }
+        .toast-error { background: rgba(248, 113, 113, 0.85); }
+        .toast-info { background: rgba(240, 168, 196, 0.85); }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .store-charts-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin: 1rem 0;
+        }
+        .store-charts-row .chart-wrapper {
+            flex: 1;
+            min-width: 200px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 16px;
+            padding: 0.8rem;
+        }
+        .store-charts-row .chart-wrapper canvas { max-height: 150px; max-width: 100%; }
+        .store-charts-row .chart-wrapper.bar-chart canvas { max-height: 160px; }
+        @media (max-width: 860px) {
+            .dash-row-1, .dash-row-2 { grid-template-columns: 1fr 1fr; }
+            .profile-card { grid-column: auto; }
+            .dashboard-grid { display: block; }
+            .stat-card { margin-bottom: 0.6rem; }
+            .analytics-sm { max-width: 100%; }
+            .notification-panel { width: 300px; right: -320px; }
+            .calendar-day { min-height: 50px; }
+            .store-analytics-row { flex-direction: column; }
+            .store-charts-row { flex-direction: column; }
+            .store-charts-row .chart-wrapper { min-width: unset; }
+        }
+        @media (max-width: 500px) {
+            .dash-row-1, .dash-row-2 { grid-template-columns: 1fr; }
+            .profile-card { grid-column: auto; }
+            .sticky-note { width: 100%; }
+            .notification-panel { width: 100%; right: -100%; top: 60px; max-height: 70vh; }
+            .performance-list { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="nav-content">
+        <div class="logo"><i class="fas fa-tasks"></i> TaskFlow</div>
+        <div class="nav-links">
+            <button class="nav-btn active" data-view="dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
+            <button class="nav-btn" data-view="tasks"><i class="fas fa-list"></i> Tasks</button>
+            <button class="nav-btn" data-view="calendar"><i class="fas fa-calendar-alt"></i> Calendar</button>
+            <button class="nav-btn" data-view="manager"><i class="fas fa-user-cog"></i> Manager</button>
+            <button class="nav-btn" data-view="store"><i class="fas fa-store"></i> Store View</button>
+            <button class="nav-btn" data-view="admin"><i class="fas fa-cog"></i> Admin</button>
+            <button class="nav-btn" id="notifToggle" onclick="toggleNotifications()">
+                <i class="fas fa-bell"></i>
+                <span id="notifBadge" class="notif-badge" style="display:none;">0</span>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<div class="notification-panel" id="notificationPanel">
+    <div class="notification-panel-header">
+        <h4><i class="fas fa-bell"></i> Notifications</h4>
+        <div>
+            <button class="btn btn-sm btn-outline" onclick="markAllRead()">Mark all read</button>
+            <button class="modal-close" onclick="toggleNotifications()">&times;</button>
+        </div>
+    </div>
+    <div class="notification-panel-body" id="notificationList">
+        <div class="notif-empty">No notifications</div>
+    </div>
+</div>
+
+<div class="container">
+    <div id="loading" class="loading" style="display:none;"><div class="spinner"></div><p>Loading...</p></div>
+    <div id="errorDisplay" class="error-message" style="display:none;"></div>
+
+    <!-- DASHBOARD -->
+    <div id="view-dashboard" class="view active">
+        <div class="dashboard-grid">
+            <div class="dash-row-1">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalTasks">0</div>
+                    <div class="stat-label">Total Tasks</div>
+                    <div class="stat-progress">
+                        <div class="progress-container"><div class="progress-bar" id="overallProgressBar" style="width:0%;background:#667eea;"></div></div>
+                        <span class="progress-percent" id="overallProgressText">0%</span>
+                    </div>
+                    <div class="icon-wrap"><i class="fas fa-tasks"></i></div>
+                </div>
+                <div class="stat-card" style="border-left: 3px solid #34d399;">
+                    <div class="stat-number" id="completedTasks">0</div>
+                    <div class="stat-label">Completed</div>
+                    <div class="icon-wrap"><i class="fas fa-check-circle"></i></div>
+                </div>
+                <div class="stat-card" style="border-left: 3px solid #f87171;">
+                    <div class="stat-number" id="overdueTasks">0</div>
+                    <div class="stat-label">Overdue</div>
+                    <div class="icon-wrap"><i class="fas fa-exclamation-circle"></i></div>
+                </div>
+            </div>
+            <div class="dash-row-2">
+                <div class="stat-card" style="border-left: 3px solid #fbbf24;">
+                    <div class="stat-number" id="inProgressTasks">0</div>
+                    <div class="stat-label">In Progress</div>
+                    <div class="icon-wrap"><i class="fas fa-spinner"></i></div>
+                </div>
+                <div class="stat-card" style="border-left: 3px solid #667eea;">
+                    <div class="stat-number" id="totalStores">0</div>
+                    <div class="stat-label">Stores</div>
+                    <div class="icon-wrap"><i class="fas fa-store"></i></div>
+                </div>
+                <div class="profile-card">
+                    <img src="https://i.pinimg.com/736x/34/8c/5d/348c5dd3aecaa7365f61f1a250ea42e2.jpg" alt="Team avatar">
+                </div>
+            </div>
+        </div>
+
+        <div style="display: flex; flex-wrap: wrap; gap: 1.5rem;">
+            <div class="card" style="flex: 1 1 380px;">
+                <div class="card-title"><span><i class="fas fa-chart-bar"></i> Analytics</span></div>
+                <div class="analytics-sm">
+                    <div><canvas id="priorityChart"></canvas></div>
+                    <div><canvas id="statusChart"></canvas></div>
+                </div>
+            </div>
+            <div class="card" style="flex: 2 1 460px;">
+                <div class="card-title">
+                    <span><i class="fas fa-thumbtack"></i> Bulletin Board</span>
+                    <button class="btn btn-primary btn-sm" onclick="showAddBulletin()"><i class="fas fa-plus"></i> Add</button>
+                </div>
+                <div id="bulletinContent" class="bulletin-board"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span><i class="fas fa-clock"></i> Recent Activity</span></div>
+            <div id="recentActivity"></div>
+        </div>
+    </div>
+
+    <!-- TASKS -->
+    <div id="view-tasks" class="view">
+        <div class="card">
+            <div class="card-title">
+                <span><i class="fas fa-tasks"></i> All Tasks</span>
+                <div style="display:flex; gap:0.4rem; flex-wrap:wrap; align-items:center;">
+                    <input type="text" id="searchInput" placeholder="Search..." style="padding:0.3rem 0.8rem; border:1px solid #e2e8f0; border-radius:40px; max-width:150px;">
+                    <button class="btn btn-primary btn-sm" onclick="filterTasks()"><i class="fas fa-search"></i></button>
+                    <button class="btn btn-warning btn-sm" onclick="clearFilter()"><i class="fas fa-times"></i></button>
+                    <div class="task-filter-btns">
+                        <button class="btn btn-sm btn-outline active" id="filterAll" onclick="setTaskFilter('all')">All</button>
+                        <button class="btn btn-sm btn-outline" id="filterActive" onclick="setTaskFilter('active')">Active</button>
+                        <button class="btn btn-sm btn-outline" id="filterCompleted" onclick="setTaskFilter('completed')">Completed</button>
+                    </div>
+                </div>
+            </div>
+            <div id="allTasksContainer"></div>
+        </div>
+    </div>
+
+    <!-- CALENDAR -->
+    <div id="view-calendar" class="view">
+        <div class="card">
+            <div class="card-title"><span><i class="fas fa-calendar-alt"></i> Calendar View</span></div>
+            <div class="calendar-nav">
+                <div class="nav-group">
+                    <button class="btn btn-sm btn-outline" onclick="changeMonth(-1)"><i class="fas fa-chevron-left"></i></button>
+                    <button class="btn btn-sm btn-outline" onclick="changeMonth(1)"><i class="fas fa-chevron-right"></i></button>
+                </div>
+                <h3 id="calendarMonthYear">January 2024</h3>
+                <div class="nav-group"><button class="btn btn-sm btn-outline" onclick="goToday()">Today</button></div>
+            </div>
+            <div id="calendarContainer" class="calendar-grid"></div>
+            <div style="margin-top:1rem; display:flex; gap:1rem; flex-wrap:wrap; font-size:0.8rem;">
+                <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#d1fae5;border-left:3px solid #34d399;margin-right:0.3rem;"></span> Completed</span>
+                <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#fef3c7;border-left:3px solid #fbbf24;margin-right:0.3rem;"></span> Pending</span>
+                <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#fef2f2;border-left:3px solid #ef4444;margin-right:0.3rem;"></span> Overdue</span>
+                <span><span style="display:inline-block;width:14px;height:14px;border-radius:3px;background:#dbeafe;border-left:3px solid #60a5fa;margin-right:0.3rem;"></span> In Progress</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- MANAGER -->
+    <div id="view-manager" class="view">
+        <div class="card">
+            <div class="card-title"><span><i class="fas fa-user-cog"></i> Manager Controls</span><button class="btn btn-primary" onclick="showAddTask()"><i class="fas fa-plus"></i> Add Task</button></div>
+            <div id="managerTasksContainer"></div>
+        </div>
+    </div>
+
+    <!-- STORE VIEW -->
+    <div id="view-store" class="view">
+        <div class="card">
+            <div class="card-title">
+                <span><i class="fas fa-store"></i> Store Overview</span>
+                <span style="font-size:0.8rem;font-weight:400;color:#5b4a7a;">
+                    <i class="fas fa-users"></i> <span id="storeStaffCount">0</span> assigned
+                </span>
+            </div>
+
+            <div class="store-button-grid" id="storeButtonGrid"></div>
+
+            <div id="storeDetailPanel" style="margin-top:1.5rem; display:none;">
+                <div class="store-detail-header">
+                    <h3 id="storeDetailName"><i class="fas fa-store-alt"></i> Store Name</h3>
+                    <div class="store-detail-meta">
+                        <span id="storeTaskCount">0 tasks</span>
+                        <span id="storeCompletionRate">0% complete</span>
+                    </div>
+                </div>
+
+                <!-- Analytics row with 3 different chart types -->
+                <div class="store-charts-row">
+                    <div class="chart-wrapper">
+                        <canvas id="storeStatusChart" width="200" height="130"></canvas>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="storePriorityChart" width="200" height="130"></canvas>
+                    </div>
+                    <div class="chart-wrapper bar-chart">
+                        <canvas id="storeProgressChart" width="200" height="140"></canvas>
+                    </div>
+                </div>
+
+                <!-- Stats boxes -->
+                <div class="store-analytics-row">
+                    <div class="store-stats-box">
+                        <div class="stat-item"><span class="stat-label-sm">Pending</span><span class="stat-value" id="storePending">0</span></div>
+                        <div class="stat-item"><span class="stat-label-sm">In Progress</span><span class="stat-value" id="storeInProgress">0</span></div>
+                        <div class="stat-item"><span class="stat-label-sm">Completed</span><span class="stat-value" id="storeCompleted">0</span></div>
+                        <div class="stat-item"><span class="stat-label-sm">Overdue</span><span class="stat-value" id="storeOverdue">0</span></div>
+                        <div class="stat-item" style="grid-column: span 2; border-bottom: none; padding-top:0.4rem; border-top:1px solid rgba(210,180,230,0.15);">
+                            <span class="stat-label-sm">Avg Progress</span>
+                            <span class="stat-value" id="storeAvgProgress">0%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Performance evaluation -->
+                <div class="performance-section">
+                    <h4><i class="fas fa-user-check"></i> Performance by Assigned</h4>
+                    <div id="storePerformanceList" class="performance-list"></div>
+                </div>
+
+                <!-- Task list -->
+                <div style="margin-top:1.2rem;">
+                    <h4><i class="fas fa-list-ul"></i> Task List</h4>
+                    <div id="storeTaskList" class="table-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ADMIN -->
+    <div id="view-admin" class="view">
+        <div class="card">
+            <div class="card-title"><span><i class="fas fa-cog"></i> Admin Panel</span></div>
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchAdminTab('stores')"><i class="fas fa-store"></i> Stores</button>
+                <button class="tab-btn" onclick="switchAdminTab('activity')"><i class="fas fa-history"></i> Activity</button>
+            </div>
+            <div id="admin-stores" class="tab-content active"><div style="display:flex; justify-content:space-between; margin-bottom:0.8rem; flex-wrap:wrap;"><h4>Manage Stores</h4><button class="btn btn-primary btn-sm" onclick="showAddStore()"><i class="fas fa-plus"></i> Add Store</button></div><div id="storesContainer"></div></div>
+            <div id="admin-activity" class="tab-content"><h4>Activity Log</h4><div id="activityLogContainer"></div></div>
+        </div>
+    </div>
+</div>
+
+<div id="modal" class="modal"><div class="modal-content"><div class="modal-header"><h3 id="modalTitle">Add</h3><button class="modal-close" onclick="closeModal()">&times;</button></div><div id="modalBody"></div></div></div>
+
+<script>
+// ========== CONFIG ==========
+const CONFIG = {
+    API_URL: 'https://script.google.com/macros/s/AKfycbxYl-863SRru-YLYhTPQPSXhhK-uNqEkw93fc0tJSYCNlE8F2hvQWjYDmJbjjtmARSM/exec',
+    ADMIN_PASSWORD: 'admin123'
+};
+
+let tasks = [], bulletins = [], stores = [], activityLog = [], charts = {};
+let searchTerm = '', filteredTasks = [], currentTaskFilter = 'all';
+let calendarDate = new Date();
+let notifications = [], notificationIdCounter = 0;
+let selectedStoreId = null;
+let currentStoreChart = null;
+let currentStorePriorityChart = null;
+let currentStoreProgressChart = null;
+
+// ========== UTILITY ==========
+function formatDate(d) { if (!d) return ''; if (typeof d === 'string' && d.includes('T')) return d.split('T')[0]; return d; }
+function getBulletinId(post) { return post.id || post.postid || post.bulletinid || post['Bulletin ID'] || `bul_${Date.now()}`; }
+function getTaskId(task) { return task.id || task.taskid || task.taskId || task.ID || task['Task ID']; }
+
+function openModal(title, body) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalBody').innerHTML = body;
+    document.getElementById('modal').classList.add('active');
+}
+function closeModal() {
+    document.getElementById('modal').classList.remove('active');
+    document.getElementById('modalBody').innerHTML = '';
+}
+function verifyPassword() {
+    const p = prompt('🔐 Admin password:');
+    if (p === null) return false;
+    if (p === CONFIG.ADMIN_PASSWORD) return true;
+    showToast('❌ Incorrect password', 'error');
+    return false;
+}
+function showLoading(s) { document.getElementById('loading').style.display = s ? 'block' : 'none'; }
+function showError(m) { const e = document.getElementById('errorDisplay'); e.textContent = m; e.style.display = 'block'; }
+function hideError() { document.getElementById('errorDisplay').style.display = 'none'; }
+function showToast(message, type = 'success') {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// ========== NOTIFICATIONS ==========
+function requestNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') return;
+    if (Notification.permission === 'denied') return;
+    Notification.requestPermission();
+}
+function addNotification(title, body, type = 'info') {
+    const id = ++notificationIdCounter;
+    notifications.unshift({ id, title, body, time: new Date(), read: false, type });
+    if (notifications.length > 100) notifications.pop();
+    saveNotifications();
+    updateNotificationBadge();
+    renderNotifications();
+    if ('Notification' in window && Notification.permission === 'granted') {
+        try { new Notification(title, { body, icon: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23667eea"%3E%3Cpath d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/%3E%3C/svg%3E' }); } catch (e) {}
+    }
+}
+function saveNotifications() { try { localStorage.setItem('taskflow_notifications', JSON.stringify(notifications)); } catch (e) {} }
+function loadNotifications() {
+    try {
+        const saved = localStorage.getItem('taskflow_notifications');
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            notifications = parsed;
+            if (notifications.length) notificationIdCounter = Math.max(...notifications.map(n => n.id || 0), 0);
+            updateNotificationBadge();
+            renderNotifications();
+        }
+    } catch (e) {}
+}
+function updateNotificationBadge() {
+    const unread = notifications.filter(n => !n.read).length;
+    const badge = document.getElementById('notifBadge');
+    if (unread > 0) { badge.style.display = 'inline'; badge.textContent = unread > 99 ? '99+' : unread; }
+    else { badge.style.display = 'none'; }
+}
+function renderNotifications() {
+    const container = document.getElementById('notificationList');
+    if (!notifications.length) { container.innerHTML = '<div class="notif-empty">No notifications</div>'; return; }
+    let html = '';
+    notifications.slice(0, 50).forEach(n => {
+        const time = n.time ? new Date(n.time).toLocaleString() : '';
+        html += `<div class="notification-item ${n.read ? '' : 'unread'}">
+            <button class="notif-dismiss" onclick="dismissNotification(${n.id})">&times;</button>
+            <div><strong>${n.title}</strong></div>
+            <div>${n.body}</div>
+            <div class="notif-time">${time}</div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+function dismissNotification(id) { notifications = notifications.filter(n => n.id !== id); saveNotifications(); updateNotificationBadge(); renderNotifications(); }
+function markAllRead() { notifications.forEach(n => n.read = true); saveNotifications(); updateNotificationBadge(); renderNotifications(); showToast('All notifications marked as read'); }
+function toggleNotifications() {
+    const panel = document.getElementById('notificationPanel');
+    panel.classList.toggle('open');
+    if (panel.classList.contains('open')) {
+        const unread = notifications.filter(n => !n.read);
+        if (unread.length) { unread.forEach(n => n.read = true); saveNotifications(); updateNotificationBadge(); renderNotifications(); }
+    }
+}
+
+// ========== API ==========
+async function callAPI(action, data = {}) {
+    const params = new URLSearchParams({ action, ...data });
+    const res = await fetch(`${CONFIG.API_URL}?${params.toString()}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+}
+async function fetchTasks() { return (await callAPI('getTasks')) || []; }
+async function fetchBulletins() { return (await callAPI('getBulletins')) || []; }
+async function fetchStores() { return (await callAPI('getStores')) || []; }
+async function fetchActivityLog() { return (await callAPI('getActivityLog')) || []; }
+async function addTaskToSheet(d) { return callAPI('addTask', d); }
+async function updateTaskInSheet(id, d) { return callAPI('updateTask', { id, ...d }); }
+async function deleteTaskFromSheet(id) { return callAPI('deleteTask', { id }); }
+async function addBulletinToSheet(content, type) { return callAPI('addBulletin', { content, type }); }
+async function updateBulletinInSheet(id, content, type) { return callAPI('updateBulletin', { id, content, type }); }
+async function deleteBulletinFromSheet(id) { return callAPI('deleteBulletin', { id }); }
+async function addStoreToSheet(d) { return callAPI('addStore', d); }
+async function updateStoreInSheet(id, d) { return callAPI('updateStore', { id, ...d }); }
+async function deleteStoreFromSheet(id) { return callAPI('deleteStore', { id }); }
+
+// ========== LOAD ==========
+async function loadData() {
+    showLoading(true); hideError();
+    try {
+        const [t, b, s, a] = await Promise.all([fetchTasks(), fetchBulletins(), fetchStores(), fetchActivityLog()]);
+        if (tasks.length > 0 && t.length > tasks.length) {
+            const newTasks = t.filter(task => !tasks.some(ot => getTaskId(ot) === getTaskId(task)));
+            newTasks.forEach(task => {
+                addNotification('📋 New Task', `${task.title || 'Task'} assigned to ${task.assignedto || task.assignedTo || 'someone'}`);
+            });
+        }
+        tasks = t || [];
+        bulletins = b || [];
+        stores = s || [];
+        activityLog = a || [];
+        loadNotifications();
+        renderAll();
+    } catch (e) { showError('Failed to load data. Check API URL.'); console.error(e); }
+    finally { showLoading(false); }
+}
+
+// ========== RENDER ALL ==========
+function renderAll() {
+    renderDashboard();
+    renderAllTasks();
+    renderManagerTasks();
+    renderStoreButtons();
+    renderStores();
+    renderActivityLog();
+    renderRecentActivity();
+    renderBulletin();
+    renderCalendar();
+}
+
+function renderDashboard() {
+    const total = tasks.length;
+    const completed = tasks.filter(t => t.status?.toLowerCase() === 'completed').length;
+    const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+    const overdue = tasks.filter(t => formatDate(t.duedate) < today && t.status?.toLowerCase() !== 'completed').length;
+    const inProgress = tasks.filter(t => t.status?.toLowerCase() === 'in progress').length;
+    
+    document.getElementById('totalTasks').textContent = total;
+    document.getElementById('completedTasks').textContent = completed;
+    document.getElementById('overdueTasks').textContent = overdue;
+    document.getElementById('inProgressTasks').textContent = inProgress;
+    document.getElementById('totalStores').textContent = stores.length;
+    
+    const progressPercent = total > 0 ? Math.round((completed / total) * 100) : 0;
+    document.getElementById('overallProgressBar').style.width = progressPercent + '%';
+    document.getElementById('overallProgressText').textContent = progressPercent + '%';
+    
+    renderCharts();
+}
+
+function renderCharts() {
+    const p = { High: 0, Medium: 0, Low: 0 };
+    tasks.forEach(t => { if (t.priority) p[t.priority] = (p[t.priority] || 0) + 1; });
+    if (charts.priority) charts.priority.destroy();
+    charts.priority = new Chart('priorityChart', {
+        type: 'doughnut',
+        data: { labels: ['High', 'Medium', 'Low'], datasets: [{ data: [p.High || 0, p.Medium || 0, p.Low || 0], backgroundColor: ['#f87171', '#fbbf24', '#60a5fa'] }] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }, title: { display: false } } }
+    });
+    const s = { Pending: 0, 'In Progress': 0, Completed: 0 };
+    tasks.forEach(t => {
+        if (t.status) {
+            const k = t.status.toLowerCase();
+            if (k === 'pending') s.Pending++;
+            else if (k === 'in progress') s['In Progress']++;
+            else if (k === 'completed') s.Completed++;
+        }
+    });
+    if (charts.status) charts.status.destroy();
+    charts.status = new Chart('statusChart', {
+        type: 'doughnut',
+        data: { labels: ['Pending', 'In Progress', 'Completed'], datasets: [{ data: [s.Pending || 0, s['In Progress'] || 0, s.Completed || 0], backgroundColor: ['#fbbf24', '#60a5fa', '#34d399'] }] },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }, title: { display: false } } }
+    });
+}
+
+function renderBulletin() {
+    const c = document.getElementById('bulletinContent');
+    if (!bulletins.length) { c.innerHTML = '<div class="empty-state"><i class="fas fa-thumbtack"></i><p>No posts</p></div>'; return; }
+    let html = '';
+    const sorted = [...bulletins].reverse();
+    sorted.forEach(post => {
+        const id = getBulletinId(post);
+        let date = post.timestamp || post.dateposted || post.date || '';
+        if (date.includes('T')) { const d = new Date(date); d.setHours(d.getHours() + 8); date = d.toISOString().replace('T', ' ').slice(0, 16); }
+        html += `<div class="sticky-note">
+            <div class="note-content">${post.content || ''}</div>
+            <div class="note-footer">
+                <span class="note-badge">${post.type || 'Note'}</span>
+                <span><i class="far fa-clock"></i> ${date || ''}</span>
+                <div class="note-actions">
+                    <button class="edit-note" onclick="showEditBulletin('${id}')"><i class="fas fa-pen"></i></button>
+                    <button class="delete-note" onclick="showDeleteBulletin('${id}')"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        </div>`;
+    });
+    c.innerHTML = html;
+}
+
+function renderAllTasks() {
+    const c = document.getElementById('allTasksContainer');
+    let list = searchTerm ? filteredTasks : tasks;
+    if (currentTaskFilter === 'active') list = list.filter(t => t.status?.toLowerCase() !== 'completed');
+    else if (currentTaskFilter === 'completed') list = list.filter(t => t.status?.toLowerCase() === 'completed');
+    if (!list.length) { c.innerHTML = '<div class="empty-state"><i class="fas fa-tasks"></i><p>No tasks</p></div>'; return; }
+    let html = '<div class="table-container"><table><thead><tr><th>Title</th><th>Store</th><th>Assigned</th><th>Priority</th><th>Due</th><th>Status</th><th>Progress</th></tr></thead><tbody>';
+    list.forEach(task => {
+        const due = formatDate(task.duedate), today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+        const overdue = due && due < today && task.status?.toLowerCase() !== 'completed';
+        html += `<tr class="${overdue ? 'overdue' : ''}"><td>${task.title || ''}</td><td>${task.store || ''}</td><td>${task.assignedto || task.assignedTo || ''}</td>
+            <td class="priority-${(task.priority || '').toLowerCase()}">${task.priority || ''}</td>
+            <td class="${overdue ? 'due-date' : ''}">${due || ''}</td>
+            <td><span class="badge badge-${(task.status || 'pending').toLowerCase().replace(' ', '-')}">${task.status || 'Pending'}</span></td>
+            <td><div class="progress-container"><div class="progress-bar" style="width:${task.progress || 0}%;background:${(task.progress || 0) === 100 ? '#34d399' : '#667eea'}"></div></div> ${task.progress || 0}%</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    c.innerHTML = html;
+}
+
+function renderManagerTasks() {
+    const c = document.getElementById('managerTasksContainer');
+    if (!tasks.length) { c.innerHTML = '<div class="empty-state"><i class="fas fa-tasks"></i><p>No tasks</p></div>'; return; }
+    let html = '<div class="table-container"><table><thead><tr><th>Title</th><th>Store</th><th>Assigned</th><th>Priority</th><th>Due</th><th>Status</th><th>Progress</th><th>Actions</th></tr></thead><tbody>';
+    tasks.forEach(task => {
+        const id = getTaskId(task);
+        const due = formatDate(task.duedate), today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+        const overdue = due && due < today && task.status?.toLowerCase() !== 'completed';
+        html += `<tr class="${overdue ? 'overdue' : ''}"><td>${task.title || ''}</td><td>${task.store || ''}</td><td>${task.assignedto || task.assignedTo || ''}</td>
+            <td class="priority-${(task.priority || '').toLowerCase()}">${task.priority || ''}</td>
+            <td class="${overdue ? 'due-date' : ''}">${due || ''}</td>
+            <td><span class="badge badge-${(task.status || 'pending').toLowerCase().replace(' ', '-')}">${task.status || 'Pending'}</span></td>
+            <td><div class="progress-container"><div class="progress-bar" style="width:${task.progress || 0}%;background:${(task.progress || 0) === 100 ? '#34d399' : '#667eea'}"></div></div> ${task.progress || 0}%</td>
+            <td><button class="btn btn-warning btn-sm" onclick="showEditTask('${id}')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-sm" onclick="showDeleteTask('${id}')"><i class="fas fa-trash"></i></button></td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    c.innerHTML = html;
+}
+
+function getLocalDateStr(date) {
+    const d = date || new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function renderStores() {
+    const c = document.getElementById('storesContainer');
+    if (!stores.length) { c.innerHTML = '<div class="empty-state"><i class="fas fa-store"></i><p>No stores</p></div>'; return; }
+    let html = '<div class="table-container"><table><thead><tr><th>Store</th><th>Actions</th></tr></thead><tbody>';
+    stores.forEach(s => { html += `<tr><td><strong>${s.name || ''}</strong></td><td><button class="btn btn-warning btn-sm" onclick="showEditStore('${s.storeid}')"><i class="fas fa-edit"></i></button> <button class="btn btn-danger btn-sm" onclick="showDeleteStore('${s.storeid}')"><i class="fas fa-trash"></i></button></td></tr>`; });
+    html += '</tbody></table></div>';
+    c.innerHTML = html;
+}
+
+function renderActivityLog() {
+    const c = document.getElementById('activityLogContainer');
+    if (!activityLog.length) { c.innerHTML = '<div class="empty-state"><i class="fas fa-history"></i><p>No activity</p></div>'; return; }
+    let html = '';
+    activityLog.slice(0, 30).forEach(log => {
+        let ts = log.timestamp || '';
+        if (ts.includes('T')) { const d = new Date(ts); d.setHours(d.getHours() + 8); ts = d.toISOString().replace('T', ' ').slice(0, 19); }
+        html += `<div class="log-entry"><div><span class="log-action">${log.action || ''}</span> ${log.details || ''}</div><div class="log-time"><i class="far fa-clock"></i> ${ts || ''} by ${log.user || 'System'}</div></div>`;
+    });
+    c.innerHTML = html;
+}
+
+function renderRecentActivity() {
+    const c = document.getElementById('recentActivity');
+    const recent = activityLog.slice(0, 8);
+    if (!recent.length) { c.innerHTML = '<div class="empty-state"><i class="fas fa-clock"></i><p>No recent activity</p></div>'; return; }
+    let html = '';
+    recent.forEach(log => {
+        let ts = log.timestamp || '';
+        if (ts.includes('T')) { const d = new Date(ts); d.setHours(d.getHours() + 8); ts = d.toISOString().replace('T', ' ').slice(0, 19); }
+        html += `<div class="log-entry"><div><span class="log-action">${log.action || ''}</span> ${log.details || ''}</div><div class="log-time"><i class="far fa-clock"></i> ${ts || ''} by ${log.user || 'System'}</div></div>`;
+    });
+    c.innerHTML = html;
+}
+
+// ========== CALENDAR ==========
+function renderCalendar() {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+    const today = new Date();
+    const todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+    document.getElementById('calendarMonthYear').textContent = new Date(year, month).toLocaleString('default', { month: 'long', year: 'numeric' });
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    let html = '';
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dayNames.forEach(d => { html += `<div class="calendar-header">${d}</div>`; });
+    for (let i = firstDay - 1; i >= 0; i--) {
+        const day = daysInPrevMonth - i;
+        html += `<div class="calendar-day empty other-month"><div class="day-number">${day}</div></div>`;
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateObj = new Date(year, month, day);
+        // FIX: Use local date string instead of UTC
+        const dateStr = dateObj.getFullYear() + '-' + String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + String(dateObj.getDate()).padStart(2, '0');
+        const isToday = dateStr === todayStr;
+        const dayTasks = tasks.filter(t => formatDate(t.duedate) === dateStr && t.status?.toLowerCase() !== 'completed');
+        const sorted = [...dayTasks].sort((a, b) => {
+            const aO = dateStr < todayStr ? 1 : 0;
+            const bO = dateStr < todayStr ? 1 : 0;
+            return bO - aO;
+        });
+        let tasksHtml = '';
+        sorted.slice(0, 4).forEach(task => {
+            const status = task.status?.toLowerCase() || 'pending';
+            const isOverdue = dateStr < todayStr && status !== 'completed';
+            let cls = status === 'completed' ? 'completed' : status === 'in progress' ? 'inprogress' : isOverdue ? 'overdue' : 'pending';
+            const name = task.title && task.title.length > 22 ? task.title.slice(0, 20) + '…' : (task.title || 'Task');
+            const taskId = getTaskId(task);
+            tasksHtml += `<div class="task-item ${cls}" onclick="event.stopPropagation();showTaskDetails('${taskId}')" title="${task.title || 'Task'}">${name}</div>`;
+        });
+        if (sorted.length > 4) tasksHtml += `<div class="task-more" onclick="event.stopPropagation();showDayTasks('${dateStr}')">+${sorted.length - 4} more</div>`;
+        const classes = `calendar-day ${isToday ? 'today' : ''}`;
+        html += `<div class="${classes}" onclick="showDayTasks('${dateStr}')">
+            <div class="day-number">${day}</div>
+            ${dayTasks.length > 0 ? `<div class="day-tasks">${tasksHtml}</div>` : ''}
+        </div>`;
+    }
+    const remaining = (7 - ((firstDay + daysInMonth) % 7)) % 7;
+    for (let day = 1; day <= remaining; day++) {
+        html += `<div class="calendar-day empty other-month"><div class="day-number">${day}</div></div>`;
+    }
+    document.getElementById('calendarContainer').innerHTML = html;
+}
+
+function changeMonth(delta) { calendarDate.setMonth(calendarDate.getMonth() + delta); renderCalendar(); }
+function goToday() { calendarDate = new Date(); renderCalendar(); }
+function showTaskDetails(taskId) {
+    const task = tasks.find(t => getTaskId(t) === taskId);
+    if (!task) { showToast('Task not found', 'error'); return; }
+    const status = task.status?.toLowerCase() || 'pending';
+    const badgeClass = status === 'completed' ? 'badge-completed' : status === 'in progress' ? 'badge-inprogress' : 'badge-pending';
+    const due = formatDate(task.duedate);
+    const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+    const isOverdue = due && due < today && status !== 'completed';
+    openModal('📋 Task Details', `
+        <div style="padding:0.5rem 0;">
+            <h3 style="margin-bottom:0.3rem;">${task.title || 'Task'}</h3>
+            <p style="color:#64748b;font-size:0.9rem;">${task.description || 'No description'}</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-top:0.8rem;font-size:0.85rem;">
+                <div><strong>Store:</strong> ${task.store || '-'}</div>
+                <div><strong>Assigned:</strong> ${task.assignedto || task.assignedTo || '-'}</div>
+                <div><strong>Priority:</strong> <span class="priority-${(task.priority || '').toLowerCase()}">${task.priority || '-'}</span></div>
+                <div><strong>Due:</strong> ${due || '-'} ${isOverdue ? '⚠️' : ''}</div>
+                <div><strong>Status:</strong> <span class="badge ${badgeClass}">${task.status || 'Pending'}</span></div>
+                <div><strong>Progress:</strong> ${task.progress || 0}%</div>
+            </div>
+            ${task.remarks ? `<div style="margin-top:0.5rem;font-size:0.85rem;"><strong>Remarks:</strong> ${task.remarks}</div>` : ''}
+        </div>
+    `);
+}
+function showDayTasks(dateStr) {
+    const dayTasks = tasks.filter(t => formatDate(t.duedate) === dateStr && t.status?.toLowerCase() !== 'completed');
+    if (!dayTasks.length) { showToast(`No active tasks for ${dateStr}`, 'info'); return; }
+    let html = `<div style="max-height:350px;overflow-y:auto;">`;
+    dayTasks.forEach(t => {
+        const status = t.status?.toLowerCase() || 'pending';
+        const badgeClass = status === 'completed' ? 'badge-completed' : status === 'in progress' ? 'badge-inprogress' : 'badge-pending';
+        const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+        const isOverdue = dateStr < today && status !== 'completed';
+        const taskId = getTaskId(t);
+        html += `<div style="padding:0.4rem 0;border-bottom:1px solid #eef2f6;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.3rem;cursor:pointer;" onclick="showTaskDetails('${taskId}')">
+            <span><strong>${t.title || 'Task'}</strong> <span style="font-size:0.7rem;color:#64748b;">${t.assignedto || t.assignedTo || ''}</span></span>
+            <span><span class="badge ${badgeClass}">${t.status || 'Pending'}</span> ${isOverdue ? '<span style="color:#ef4444;font-weight:600;font-size:0.7rem;">⚠️ Overdue</span>' : ''}</span>
+        </div>`;
+    });
+    html += `</div>`;
+    const dateDisplay = new Date(dateStr).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    openModal(`📅 ${dateDisplay} (${dayTasks.length} active tasks)`, html);
+}
+
+// ========== TASK CRUD ==========
+function showAddTask() { if (!verifyPassword()) return; openModal('Add New Task', `
+    <div class="password-protected"><i class="fas fa-lock"></i> Admin</div>
+    <div class="form-group"><label>Title *</label><input type="text" id="taskTitle" placeholder="Title"></div>
+    <div class="form-group"><label>Description</label><textarea id="taskDescription"></textarea></div>
+    <div class="form-group"><label>Store *</label><select id="taskStore">${stores.map(s => `<option value="${s.name}">${s.name}</option>`).join('')}</select></div>
+    <div class="form-group"><label>Assigned *</label><input type="text" id="taskAssigned" placeholder="Name"></div>
+    <div class="form-group"><label>Priority</label><select id="taskPriority"><option>High</option><option selected>Medium</option><option>Low</option></select></div>
+    <div class="form-group"><label>Due Date *</label><input type="date" id="taskDueDate"></div>
+    <div class="form-group"><label>Status</label><select id="taskStatus"><option>Pending</option><option>In Progress</option><option>Completed</option></select></div>
+    <div class="form-group"><label>Progress %</label><input type="number" id="taskProgress" value="0" min="0" max="100"></div>
+    <div class="form-group"><label>Remarks</label><input type="text" id="taskRemarks"></div>
+    <button class="btn btn-primary" onclick="addTask()" style="width:100%;"><i class="fas fa-save"></i> Create</button>
+`); }
+
+async function addTask() {
+    const title = document.getElementById('taskTitle').value.trim(), store = document.getElementById('taskStore').value, assignedTo = document.getElementById('taskAssigned').value.trim(), dueDate = document.getElementById('taskDueDate').value;
+    if (!title || !store || !assignedTo || !dueDate) { alert('Fill all required fields'); return; }
+    try {
+        showLoading(true);
+        await addTaskToSheet({ title, description: document.getElementById('taskDescription').value.trim(), store, assignedTo, priority: document.getElementById('taskPriority').value, dueDate, status: document.getElementById('taskStatus').value, progress: parseInt(document.getElementById('taskProgress').value) || 0, remarks: document.getElementById('taskRemarks').value.trim(), createdBy: 'Admin' });
+        closeModal(); await loadData();
+        showToast('✅ Task added', 'success');
+        addNotification('📋 Task Created', `"${title}" assigned to ${assignedTo}`);
+    } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); }
+}
+
+function showEditTask(id) { if (!verifyPassword()) return; const task = tasks.find(t => getTaskId(t) === id); if (!task) { alert('Task not found'); return; } openModal('Edit Task', `
+    <div class="password-protected"><i class="fas fa-lock"></i> Admin</div>
+    <div class="form-group"><label>Title *</label><input type="text" id="editTaskTitle" value="${task.title || ''}"></div>
+    <div class="form-group"><label>Description</label><textarea id="editTaskDescription">${task.description || ''}</textarea></div>
+    <div class="form-group"><label>Store *</label><select id="editTaskStore">${stores.map(s => `<option value="${s.name}" ${s.name === task.store ? 'selected' : ''}>${s.name}</option>`).join('')}</select></div>
+    <div class="form-group"><label>Assigned *</label><input type="text" id="editTaskAssigned" value="${task.assignedto || task.assignedTo || ''}"></div>
+    <div class="form-group"><label>Priority</label><select id="editTaskPriority">${['High', 'Medium', 'Low'].map(p => `<option value="${p}" ${p === task.priority ? 'selected' : ''}>${p}</option>`).join('')}</select></div>
+    <div class="form-group"><label>Due Date *</label><input type="date" id="editTaskDueDate" value="${formatDate(task.duedate)}"></div>
+    <div class="form-group"><label>Remarks</label><input type="text" id="editTaskRemarks" value="${task.remarks || ''}"></div>
+    <p style="font-size:0.8rem;color:#64748b;">Status & progress managed in Store View</p>
+    <button class="btn btn-warning" onclick="updateTask('${id}')" style="width:100%;"><i class="fas fa-save"></i> Update</button>
+`); }
+
+async function updateTask(id) {
+    const task = tasks.find(t => getTaskId(t) === id);
+    if (!task) { alert('Task not found'); return; }
+    const title = document.getElementById('editTaskTitle').value.trim(), store = document.getElementById('editTaskStore').value, assignedTo = document.getElementById('editTaskAssigned').value.trim(), dueDate = document.getElementById('editTaskDueDate').value;
+    if (!title || !store || !assignedTo || !dueDate) { alert('Fill all required fields'); return; }
+    try {
+        showLoading(true);
+        await updateTaskInSheet(id, { title, description: document.getElementById('editTaskDescription').value.trim(), store, assignedTo, priority: document.getElementById('editTaskPriority').value, dueDate, remarks: document.getElementById('editTaskRemarks').value.trim(), status: task.status || 'Pending', progress: task.progress || 0, updatedBy: 'Admin' });
+        closeModal(); await loadData(); showToast('✅ Updated', 'success');
+    } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); }
+}
+
+function showDeleteTask(id) { if (!verifyPassword()) return; if (confirm('Delete task?')) deleteTask(id); }
+async function deleteTask(id) { try { showLoading(true); await deleteTaskFromSheet(id); await loadData(); showToast('✅ Deleted', 'success'); } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); } }
+
+function showUpdateTask(id) {
+    const task = tasks.find(t => getTaskId(t) === id);
+    if (!task) { alert('Task not found'); return; }
+    openModal('Update Progress', `
+        <div class="form-group"><label>Task: <strong>${task.title || ''}</strong></label><p style="color:#64748b;font-size:0.8rem;">${task.store || ''} | ${task.assignedto || task.assignedTo || ''}</p></div>
+        <div class="form-group"><label>Status</label><select id="updateTaskStatus">${['Pending', 'In Progress', 'Completed'].map(s => `<option value="${s}" ${s === task.status ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+        <div class="form-group"><label>Progress %</label><input type="number" id="updateTaskProgress" value="${task.progress || 0}" min="0" max="100"></div>
+        <div class="form-group"><label>Remarks</label><input type="text" id="updateTaskRemarks" value="${task.remarks || ''}"></div>
+        <button class="btn btn-success" onclick="updateTaskProgress('${id}')" style="width:100%;"><i class="fas fa-check"></i> Update</button>
+    `);
+}
+
+async function updateTaskProgress(id) {
+    const task = tasks.find(t => getTaskId(t) === id);
+    if (!task) { alert('Task not found'); return; }
+    const status = document.getElementById('updateTaskStatus').value, progress = parseInt(document.getElementById('updateTaskProgress').value) || 0, remarks = document.getElementById('updateTaskRemarks').value.trim();
+    const wasCompleted = task.status?.toLowerCase() === 'completed';
+    const isNowCompleted = status.toLowerCase() === 'completed';
+    try {
+        showLoading(true);
+        await updateTaskInSheet(id, { title: task.title || '', description: task.description || '', store: task.store || '', assignedTo: task.assignedto || task.assignedTo || '', priority: task.priority || 'Medium', dueDate: task.duedate || '', status, progress, remarks, updatedBy: 'Store Member' });
+        closeModal(); await loadData();
+        showToast('✅ Updated', 'success');
+        if (!wasCompleted && isNowCompleted) {
+            addNotification('🎉 Task Completed', `"${task.title}" has been completed!`);
+        }
+    } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); }
+}
+
+// ========== BULLETIN CRUD ==========
+function showAddBulletin() {
+    openModal('Add Bulletin', `
+        <div class="form-group"><label>Content *</label><textarea id="bulletinContentInput" required></textarea></div>
+        <div class="form-group"><label>Type</label><select id="bulletinType"><option>Announcement</option><option>Reminder</option><option selected>Note</option></select></div>
+        <button class="btn btn-primary" onclick="addBulletin()" style="width:100%;"><i class="fas fa-save"></i> Post</button>
+    `);
+}
+async function addBulletin() {
+    const content = document.getElementById('bulletinContentInput').value.trim();
+    if (!content) { alert('Enter content'); return; }
+    try {
+        showLoading(true);
+        await addBulletinToSheet(content, document.getElementById('bulletinType').value);
+        closeModal();
+        await loadData();
+        showToast('✅ Posted', 'success');
+        addNotification('📌 New Bulletin', content.substring(0, 50) + (content.length > 50 ? '...' : ''));
+    } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); }
+}
+function showEditBulletin(id) {
+    if (!verifyPassword()) return;
+    const post = bulletins.find(b => getBulletinId(b) === id);
+    if (!post) { showToast('Post not found', 'error'); return; }
+    openModal('Edit Bulletin', `
+        <div class="password-protected"><i class="fas fa-lock"></i> Admin</div>
+        <div class="form-group"><label>Content *</label><textarea id="editBulletinContent">${post.content || ''}</textarea></div>
+        <div class="form-group"><label>Type</label><select id="editBulletinType">
+            <option ${(post.type || 'Note') === 'Announcement' ? 'selected' : ''}>Announcement</option>
+            <option ${(post.type || 'Note') === 'Reminder' ? 'selected' : ''}>Reminder</option>
+            <option ${(post.type || 'Note') === 'Note' ? 'selected' : ''}>Note</option>
+        </select></div>
+        <button class="btn btn-warning" onclick="updateBulletin('${id}')" style="width:100%;"><i class="fas fa-save"></i> Update</button>
+    `);
+}
+async function updateBulletin(id) {
+    const content = document.getElementById('editBulletinContent').value.trim();
+    const type = document.getElementById('editBulletinType').value;
+    if (!content) { alert('Enter content'); return; }
+    try { showLoading(true); await updateBulletinInSheet(id, content, type); closeModal(); await loadData(); showToast('✅ Updated', 'success'); } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); }
+}
+function showDeleteBulletin(id) { if (!verifyPassword()) return; if (confirm('Delete this bulletin post?')) deleteBulletin(id); }
+async function deleteBulletin(id) { try { showLoading(true); await deleteBulletinFromSheet(id); await loadData(); showToast('✅ Deleted', 'success'); } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); } }
+
+// ========== STORE CRUD ==========
+function showAddStore() { if (!verifyPassword()) return; openModal('Add Store', `<div class="form-group"><label>Store Name *</label><input type="text" id="storeName" placeholder="Store name"></div><button class="btn btn-primary" onclick="addStore()" style="width:100%;"><i class="fas fa-save"></i> Add</button>`); }
+async function addStore() { const name = document.getElementById('storeName').value.trim(); if (!name) { alert('Enter name'); return; } try { showLoading(true); await addStoreToSheet({ name, createdBy: 'Admin' }); closeModal(); await loadData(); showToast('✅ Added', 'success'); } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); } }
+function showEditStore(id) { if (!verifyPassword()) return; const s = stores.find(st => st.storeid === id); if (!s) { alert('Store not found'); return; } openModal('Edit Store', `<div class="form-group"><label>Store Name *</label><input type="text" id="editStoreName" value="${s.name || ''}"></div><button class="btn btn-warning" onclick="updateStore('${id}')" style="width:100%;"><i class="fas fa-save"></i> Update</button>`); }
+async function updateStore(id) { const name = document.getElementById('editStoreName').value.trim(); if (!name) { alert('Enter name'); return; } try { showLoading(true); await updateStoreInSheet(id, { name }); closeModal(); await loadData(); showToast('✅ Updated', 'success'); } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); } }
+function showDeleteStore(id) { if (!verifyPassword()) return; if (confirm('Delete store?')) deleteStore(id); }
+async function deleteStore(id) { try { showLoading(true); await deleteStoreFromSheet(id); await loadData(); showToast('✅ Deleted', 'success'); } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); } }
+
+// ========== STORE VIEW ==========
+function renderStoreButtons() {
+    const grid = document.getElementById('storeButtonGrid');
+    if (!stores.length) {
+        grid.innerHTML = '<div class="empty-state"><i class="fas fa-store"></i><p>No stores available</p></div>';
+        document.getElementById('storeDetailPanel').style.display = 'none';
+        return;
+    }
+    let html = '';
+    stores.forEach(store => {
+        const storeTasks = tasks.filter(t => t.store === store.name);
+        const activeCount = storeTasks.filter(t => t.status?.toLowerCase() !== 'completed').length;
+        const totalCount = storeTasks.length;
+        const isActive = selectedStoreId === store.storeid;
+        html += `<button class="store-btn ${isActive ? 'active' : ''}" onclick="selectStore('${store.storeid}')">
+            <i class="fas fa-store"></i> ${store.name}
+            <span class="badge-count">${activeCount}/${totalCount}</span>
+        </button>`;
+    });
+    grid.innerHTML = html;
+
+    if (selectedStoreId && stores.some(s => s.storeid === selectedStoreId)) {
+        renderStoreDetail(selectedStoreId);
+        document.getElementById('storeDetailPanel').style.display = 'block';
+    } else if (stores.length > 0 && !selectedStoreId) {
+        selectStore(stores[0].storeid);
+    } else {
+        document.getElementById('storeDetailPanel').style.display = 'none';
+    }
+}
+
+function selectStore(storeId) {
+    selectedStoreId = storeId;
+    renderStoreButtons();
+    renderStoreDetail(storeId);
+    document.getElementById('storeDetailPanel').style.display = 'block';
+}
+
+function renderStoreDetail(storeId) {
+    const store = stores.find(s => s.storeid === storeId);
+    if (!store) return;
+
+    const storeTasks = tasks.filter(t => t.store === store.name);
+    const total = storeTasks.length;
+    const completed = storeTasks.filter(t => t.status?.toLowerCase() === 'completed').length;
+    const pending = storeTasks.filter(t => t.status?.toLowerCase() === 'pending').length;
+    const inProgress = storeTasks.filter(t => t.status?.toLowerCase() === 'in progress').length;
+    const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+    const overdue = storeTasks.filter(t => formatDate(t.duedate) < today && t.status?.toLowerCase() !== 'completed').length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const avgProgress = total > 0 ? Math.round(storeTasks.reduce((sum, t) => sum + (t.progress || 0), 0) / total) : 0;
+
+    document.getElementById('storeDetailName').textContent = store.name;
+    document.getElementById('storeTaskCount').textContent = `${total} tasks`;
+    document.getElementById('storeCompletionRate').textContent = `${completionRate}% complete`;
+    document.getElementById('storeStaffCount').textContent = [...new Set(storeTasks.map(t => t.assignedto || t.assignedTo).filter(Boolean))].length;
+
+    document.getElementById('storePending').textContent = pending;
+    document.getElementById('storeInProgress').textContent = inProgress;
+    document.getElementById('storeCompleted').textContent = completed;
+    document.getElementById('storeOverdue').textContent = overdue;
+    document.getElementById('storeAvgProgress').textContent = avgProgress + '%';
+
+    renderStoreCharts(storeTasks);
+    renderPerformance(storeTasks);
+    renderStoreTaskList(storeTasks);
+}
+
+function renderStoreCharts(storeTasks) {
+    // Chart 1: Status Distribution (Doughnut)
+    const pending = storeTasks.filter(t => t.status?.toLowerCase() === 'pending').length;
+    const inProgress = storeTasks.filter(t => t.status?.toLowerCase() === 'in progress').length;
+    const completed = storeTasks.filter(t => t.status?.toLowerCase() === 'completed').length;
+    
+    const ctx1 = document.getElementById('storeStatusChart').getContext('2d');
+    if (currentStoreChart) currentStoreChart.destroy();
+    currentStoreChart = new Chart(ctx1, {
+        type: 'doughnut',
+        data: {
+            labels: ['Pending', 'In Progress', 'Completed'],
+            datasets: [{ data: [pending || 0, inProgress || 0, completed || 0], backgroundColor: ['#fbbf24', '#60a5fa', '#34d399'], borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }, title: { display: true, text: 'Status', font: { size: 10 } } }, cutout: '60%' }
+    });
+
+    // Chart 2: Priority Distribution (Doughnut)
+    const priorities = { High: 0, Medium: 0, Low: 0 };
+    storeTasks.forEach(t => { if (t.priority) priorities[t.priority] = (priorities[t.priority] || 0) + 1; });
+    const ctx2 = document.getElementById('storePriorityChart').getContext('2d');
+    if (currentStorePriorityChart) currentStorePriorityChart.destroy();
+    currentStorePriorityChart = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: ['High', 'Medium', 'Low'],
+            datasets: [{ data: [priorities.High || 0, priorities.Medium || 0, priorities.Low || 0], backgroundColor: ['#f87171', '#fbbf24', '#60a5fa'], borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }, title: { display: true, text: 'Priority', font: { size: 10 } } }, cutout: '60%' }
+    });
+
+    // Chart 3: Progress Distribution (Horizontal Bar Chart)
+    const progressRanges = {
+        '0-20%': 0,
+        '21-40%': 0,
+        '41-60%': 0,
+        '61-80%': 0,
+        '81-100%': 0
+    };
+    storeTasks.forEach(t => {
+        const p = t.progress || 0;
+        if (p <= 20) progressRanges['0-20%']++;
+        else if (p <= 40) progressRanges['21-40%']++;
+        else if (p <= 60) progressRanges['41-60%']++;
+        else if (p <= 80) progressRanges['61-80%']++;
+        else progressRanges['81-100%']++;
+    });
+    const ctx3 = document.getElementById('storeProgressChart').getContext('2d');
+    if (currentStoreProgressChart) currentStoreProgressChart.destroy();
+    currentStoreProgressChart = new Chart(ctx3, {
+        type: 'bar',
+        data: {
+            labels: ['0-20%', '21-40%', '41-60%', '61-80%', '81-100%'],
+            datasets: [{
+                label: 'Tasks',
+                data: [progressRanges['0-20%'], progressRanges['21-40%'], progressRanges['41-60%'], progressRanges['61-80%'], progressRanges['81-100%']],
+                backgroundColor: ['#f87171', '#fb923c', '#fbbf24', '#60a5fa', '#34d399'],
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                title: { display: true, text: 'Progress Distribution', font: { size: 10 } }
+            },
+            scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 8 } } },
+                y: { grid: { display: false }, ticks: { font: { size: 8 } } }
+            }
+        }
+    });
+}
+
+function renderPerformance(storeTasks) {
+    const container = document.getElementById('storePerformanceList');
+    const perfMap = {};
+    storeTasks.forEach(task => {
+        const name = task.assignedto || task.assignedTo || 'Unassigned';
+        if (!perfMap[name]) perfMap[name] = { total: 0, completed: 0, overdue: 0, inProgress: 0 };
+        perfMap[name].total++;
+        const status = task.status?.toLowerCase() || 'pending';
+        if (status === 'completed') perfMap[name].completed++;
+        else if (status === 'in progress') perfMap[name].inProgress++;
+        const due = formatDate(task.duedate);
+        const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+        if (due && due < today && status !== 'completed') perfMap[name].overdue++;
+    });
+
+    const entries = Object.entries(perfMap);
+    if (!entries.length) {
+        container.innerHTML = '<div style="color:#5b4a7a;font-size:0.85rem;">No assignments yet</div>';
+        return;
+    }
+
+    let html = '';
+    entries.forEach(([name, stats]) => {
+        const rate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+        const color = rate >= 80 ? '#34d399' : rate >= 50 ? '#fbbf24' : '#f87171';
+        html += `<div class="perf-card">
+            <div class="perf-name"><i class="fas fa-user-circle"></i> ${name}</div>
+            <div class="perf-stats">
+                <span>📋 ${stats.total} tasks</span>
+                <span>✅ ${stats.completed} done</span>
+                <span>⏳ ${stats.inProgress} in progress</span>
+                <span>⚠️ ${stats.overdue} overdue</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.2rem;">
+                <div class="progress-container" style="flex:1;width:auto;"><div class="progress-bar" style="width:${rate}%;background:${color};"></div></div>
+                <span class="perf-rate" style="color:${color};">${rate}%</span>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+function renderStoreTaskList(storeTasks) {
+    const container = document.getElementById('storeTaskList');
+    if (!storeTasks.length) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-list"></i><p>No tasks for this store</p></div>';
+        return;
+    }
+    const sorted = [...storeTasks].sort((a, b) => {
+        const aC = a.status?.toLowerCase() === 'completed' ? 1 : 0;
+        const bC = b.status?.toLowerCase() === 'completed' ? 1 : 0;
+        if (aC !== bC) return aC - bC;
+        return 0;
+    });
+    let html = '<div class="table-container"><table><thead><tr><th>Title</th><th>Assigned</th><th>Priority</th><th>Due</th><th>Status</th><th>Progress</th><th>Remarks</th><th>Update</th></tr></thead><tbody>';
+    const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+    sorted.forEach(task => {
+        const id = getTaskId(task);
+        const due = formatDate(task.duedate);
+        const overdue = due && due < today && task.status?.toLowerCase() !== 'completed';
+        html += `<tr class="${overdue ? 'overdue' : ''}">
+            <td>${task.title || ''}</td>
+            <td>${task.assignedto || task.assignedTo || ''}</td>
+            <td class="priority-${(task.priority || '').toLowerCase()}">${task.priority || ''}</td>
+            <td class="${overdue ? 'due-date' : ''}">${due || ''}</td>
+            <td><span class="badge badge-${(task.status || 'pending').toLowerCase().replace(' ', '-')}">${task.status || 'Pending'}</span></td>
+            <td><div class="progress-container"><div class="progress-bar" style="width:${task.progress || 0}%;background:${(task.progress || 0) === 100 ? '#34d399' : '#667eea'}"></div></div> ${task.progress || 0}%</td>
+            <td>${task.remarks || '-'}</td>
+            <td><button class="btn btn-primary btn-sm" onclick="showUpdateTask('${id}')"><i class="fas fa-pen"></i></button></td>
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+// ========== FILTERS ==========
+function setTaskFilter(filter) {
+    currentTaskFilter = filter;
+    document.querySelectorAll('.task-filter-btns .btn').forEach(b => b.classList.remove('active'));
+    const map = { all: 'filterAll', active: 'filterActive', completed: 'filterCompleted' };
+    const el = document.getElementById(map[filter]);
+    if (el) el.classList.add('active');
+    renderAllTasks();
+}
+function filterTasks() { const s = document.getElementById('searchInput').value.toLowerCase().trim(); searchTerm = s; filteredTasks = s ? tasks.filter(t => (t.title || '').toLowerCase().includes(s) || (t.store || '').toLowerCase().includes(s) || (t.assignedto || t.assignedTo || '').toLowerCase().includes(s)) : tasks; renderAllTasks(); }
+function clearFilter() { document.getElementById('searchInput').value = ''; searchTerm = ''; filteredTasks = []; renderAllTasks(); }
+function switchAdminTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.tab-btn[onclick*="${tab}"]`).classList.add('active');
+    document.getElementById(`admin-${tab}`).classList.add('active');
+    if (tab === 'stores') renderStores();
+    if (tab === 'activity') renderActivityLog();
+}
+
+// ========== NAVIGATION ==========
+document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', function () {
+        const v = this.dataset.view;
+        if (!v) return;
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+        const viewEl = document.getElementById(`view-${v}`);
+        if (viewEl) viewEl.classList.add('active');
+        if (v === 'store') renderStoreButtons();
+        if (v === 'dashboard') renderCharts();
+        if (v === 'admin') switchAdminTab('stores');
+        if (v === 'calendar') renderCalendar();
+        document.getElementById('notificationPanel').classList.remove('open');
+    });
+});
+document.getElementById('modal').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
+
+// ========== INIT ==========
+setTimeout(requestNotificationPermission, 1000);
+loadData();
+setInterval(loadData, 60000);
+console.log('✅ TaskFlow loaded. Store View now has 3 chart types: Doughnut (status), Doughnut (priority), Horizontal Bar (progress distribution).');
+</script>
+</body>
+</html>
