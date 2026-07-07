@@ -565,6 +565,33 @@
         }
         .store-charts-row .chart-wrapper canvas { max-height: 150px; max-width: 100%; }
         .store-charts-row .chart-wrapper.bar-chart canvas { max-height: 160px; }
+        /* pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        .pagination .page-btn {
+            background: rgba(255,255,255,0.5);
+            border: 1px solid #d4c0d8;
+            border-radius: 20px;
+            padding: 0.2rem 0.8rem;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: 0.15s;
+        }
+        .pagination .page-btn.active {
+            background: #f0a8c4;
+            border-color: #f0a8c4;
+            color: #2d1a4a;
+            font-weight: 600;
+        }
+        .pagination .page-btn:hover:not(.active) { background: rgba(240,168,196,0.2); }
+        .pagination .page-btn.disabled { opacity: 0.4; pointer-events: none; }
+        .pagination .page-info { font-size: 0.8rem; color: #5b4a7a; }
         @media (max-width: 860px) {
             .dash-row-1, .dash-row-2 { grid-template-columns: 1fr 1fr; }
             .profile-card { grid-column: auto; }
@@ -832,6 +859,12 @@ let currentStoreChart = null;
 let currentStorePriorityChart = null;
 let currentStoreProgressChart = null;
 
+// pagination state
+const PAGE_SIZE = 8;
+let taskPage = 1;
+let managerPage = 1;
+let storeTaskPage = 1;
+
 // ========== UTILITY ==========
 function formatDate(d) { if (!d) return ''; if (typeof d === 'string' && d.includes('T')) return d.split('T')[0]; return d; }
 function getBulletinId(post) { return post.id || post.postid || post.bulletinid || post['Bulletin ID'] || `bul_${Date.now()}`; }
@@ -974,8 +1007,8 @@ async function loadData() {
 // ========== RENDER ALL ==========
 function renderAll() {
     renderDashboard();
-    renderAllTasks();
-    renderManagerTasks();
+    renderAllTasksPaginated();
+    renderManagerTasksPaginated();
     renderStoreButtons();
     renderStores();
     renderActivityLog();
@@ -1054,15 +1087,45 @@ function renderBulletin() {
     c.innerHTML = html;
 }
 
-function renderAllTasks() {
+// ---------- PAGINATION HELPERS ----------
+function paginate(array, page, size) {
+    const start = (page - 1) * size;
+    const end = start + size;
+    return array.slice(start, end);
+}
+function renderPagination(containerId, totalItems, currentPage, onPageClick, pageSize = PAGE_SIZE) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const totalPages = Math.ceil(totalItems / pageSize) || 1;
+    if (totalPages <= 1) { container.innerHTML = ''; return; }
+    let html = '<div class="pagination">';
+    html += `<button class="page-btn ${currentPage <= 1 ? 'disabled' : ''}" onclick="${onPageClick}(${currentPage - 1})">‹</button>`;
+    const maxShow = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxShow/2));
+    let endPage = Math.min(totalPages, startPage + maxShow - 1);
+    if (endPage - startPage < maxShow - 1) startPage = Math.max(1, endPage - maxShow + 1);
+    for (let i = startPage; i <= endPage; i++) {
+        html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="${onPageClick}(${i})">${i}</button>`;
+    }
+    html += `<button class="page-btn ${currentPage >= totalPages ? 'disabled' : ''}" onclick="${onPageClick}(${currentPage + 1})">›</button>`;
+    html += `<span class="page-info">${currentPage}/${totalPages}</span>`;
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// ---------- ALL TASKS (with pagination) ----------
+function renderAllTasksPaginated() {
     const c = document.getElementById('allTasksContainer');
     let list = searchTerm ? filteredTasks : tasks;
     if (currentTaskFilter === 'active') list = list.filter(t => t.status?.toLowerCase() !== 'completed');
     else if (currentTaskFilter === 'completed') list = list.filter(t => t.status?.toLowerCase() === 'completed');
-    if (!list.length) { c.innerHTML = '<div class="empty-state"><i class="fas fa-tasks"></i><p>No tasks</p></div>'; return; }
+    const total = list.length;
+    const pageTasks = paginate(list, taskPage, PAGE_SIZE);
+    if (!total) { c.innerHTML = '<div class="empty-state"><i class="fas fa-tasks"></i><p>No tasks</p></div>'; return; }
     let html = '<div class="table-container"><table><thead><tr><th>Title</th><th>Store</th><th>Assigned</th><th>Priority</th><th>Due</th><th>Status</th><th>Progress</th></tr></thead><tbody>';
-    list.forEach(task => {
-        const due = formatDate(task.duedate), today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+    const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+    pageTasks.forEach(task => {
+        const due = formatDate(task.duedate);
         const overdue = due && due < today && task.status?.toLowerCase() !== 'completed';
         html += `<tr class="${overdue ? 'overdue' : ''}"><td>${task.title || ''}</td><td>${task.store || ''}</td><td>${task.assignedto || task.assignedTo || ''}</td>
             <td class="priority-${(task.priority || '').toLowerCase()}">${task.priority || ''}</td>
@@ -1072,15 +1135,31 @@ function renderAllTasks() {
     });
     html += '</tbody></table></div>';
     c.innerHTML = html;
+    // pagination
+    const pagContainer = document.createElement('div');
+    pagContainer.id = 'allTasksPagination';
+    c.appendChild(pagContainer);
+    renderPagination('allTasksPagination', total, taskPage, 'goTaskPage', PAGE_SIZE);
+}
+function goTaskPage(page) {
+    const total = searchTerm ? filteredTasks.length : tasks.length;
+    const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+    if (page < 1 || page > totalPages) return;
+    taskPage = page;
+    renderAllTasksPaginated();
 }
 
-function renderManagerTasks() {
+// ---------- MANAGER TASKS (with pagination) ----------
+function renderManagerTasksPaginated() {
     const c = document.getElementById('managerTasksContainer');
-    if (!tasks.length) { c.innerHTML = '<div class="empty-state"><i class="fas fa-tasks"></i><p>No tasks</p></div>'; return; }
+    const total = tasks.length;
+    const pageTasks = paginate(tasks, managerPage, PAGE_SIZE);
+    if (!total) { c.innerHTML = '<div class="empty-state"><i class="fas fa-tasks"></i><p>No tasks</p></div>'; return; }
     let html = '<div class="table-container"><table><thead><tr><th>Title</th><th>Store</th><th>Assigned</th><th>Priority</th><th>Due</th><th>Status</th><th>Progress</th><th>Actions</th></tr></thead><tbody>';
-    tasks.forEach(task => {
+    const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+    pageTasks.forEach(task => {
         const id = getTaskId(task);
-        const due = formatDate(task.duedate), today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+        const due = formatDate(task.duedate);
         const overdue = due && due < today && task.status?.toLowerCase() !== 'completed';
         html += `<tr class="${overdue ? 'overdue' : ''}"><td>${task.title || ''}</td><td>${task.store || ''}</td><td>${task.assignedto || task.assignedTo || ''}</td>
             <td class="priority-${(task.priority || '').toLowerCase()}">${task.priority || ''}</td>
@@ -1091,13 +1170,251 @@ function renderManagerTasks() {
     });
     html += '</tbody></table></div>';
     c.innerHTML = html;
+    const pagContainer = document.createElement('div');
+    pagContainer.id = 'managerTasksPagination';
+    c.appendChild(pagContainer);
+    renderPagination('managerTasksPagination', total, managerPage, 'goManagerPage', PAGE_SIZE);
+}
+function goManagerPage(page) {
+    const total = tasks.length;
+    const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+    if (page < 1 || page > totalPages) return;
+    managerPage = page;
+    renderManagerTasksPaginated();
 }
 
-function getLocalDateStr(date) {
-    const d = date || new Date();
-    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+// ---------- STORE TASK LIST (with pagination) ----------
+function renderStoreTaskList(storeTasks) {
+    const container = document.getElementById('storeTaskList');
+    if (!storeTasks.length) {
+        container.innerHTML = '<div class="empty-state"><i class="fas fa-list"></i><p>No tasks for this store</p></div>';
+        return;
+    }
+    const total = storeTasks.length;
+    const pageTasks = paginate(storeTasks, storeTaskPage, PAGE_SIZE);
+    const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+    let html = '<div class="table-container"><table><thead><tr><th>Title</th><th>Assigned</th><th>Priority</th><th>Due</th><th>Status</th><th>Progress</th><th>Remarks</th><th>Update</th></tr></thead><tbody>';
+    pageTasks.forEach(task => {
+        const id = getTaskId(task);
+        const due = formatDate(task.duedate);
+        const overdue = due && due < today && task.status?.toLowerCase() !== 'completed';
+        html += `<tr class="${overdue ? 'overdue' : ''}">
+            <td>${task.title || ''}</td>
+            <td>${task.assignedto || task.assignedTo || ''}</td>
+            <td class="priority-${(task.priority || '').toLowerCase()}">${task.priority || ''}</td>
+            <td class="${overdue ? 'due-date' : ''}">${due || ''}</td>
+            <td><span class="badge badge-${(task.status || 'pending').toLowerCase().replace(' ', '-')}">${task.status || 'Pending'}</span></td>
+            <td><div class="progress-container"><div class="progress-bar" style="width:${task.progress || 0}%;background:${(task.progress || 0) === 100 ? '#34d399' : '#667eea'}"></div></div> ${task.progress || 0}%</td>
+            <td>${task.remarks || '-'}</td>
+            <td><button class="btn btn-primary btn-sm" onclick="showUpdateTask('${id}')"><i class="fas fa-pen"></i></button></td>
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+    // pagination for store tasks
+    const pagContainer = document.createElement('div');
+    pagContainer.id = 'storeTaskPagination';
+    container.appendChild(pagContainer);
+    renderPagination('storeTaskPagination', total, storeTaskPage, 'goStoreTaskPage', PAGE_SIZE);
+}
+function goStoreTaskPage(page) {
+    const store = stores.find(s => s.storeid === selectedStoreId);
+    if (!store) return;
+    const storeTasks = tasks.filter(t => t.store === store.name);
+    const total = storeTasks.length;
+    const totalPages = Math.ceil(total / PAGE_SIZE) || 1;
+    if (page < 1 || page > totalPages) return;
+    storeTaskPage = page;
+    renderStoreTaskList(storeTasks);
 }
 
+// override selectStore to reset pagination
+const originalSelectStore = selectStore;
+selectStore = function(storeId) {
+    storeTaskPage = 1;
+    originalSelectStore(storeId);
+};
+
+// override renderStoreDetail to reset page
+const originalRenderStoreDetail = renderStoreDetail;
+renderStoreDetail = function(storeId) {
+    storeTaskPage = 1;
+    originalRenderStoreDetail(storeId);
+};
+
+// ---------- STORE VIEW ----------
+function renderStoreButtons() {
+    const grid = document.getElementById('storeButtonGrid');
+    if (!stores.length) {
+        grid.innerHTML = '<div class="empty-state"><i class="fas fa-store"></i><p>No stores available</p></div>';
+        document.getElementById('storeDetailPanel').style.display = 'none';
+        return;
+    }
+    let html = '';
+    stores.forEach(store => {
+        const storeTasks = tasks.filter(t => t.store === store.name);
+        const activeCount = storeTasks.filter(t => t.status?.toLowerCase() !== 'completed').length;
+        const totalCount = storeTasks.length;
+        const isActive = selectedStoreId === store.storeid;
+        html += `<button class="store-btn ${isActive ? 'active' : ''}" onclick="selectStore('${store.storeid}')">
+            <i class="fas fa-store"></i> ${store.name}
+            <span class="badge-count">${activeCount}/${totalCount}</span>
+        </button>`;
+    });
+    grid.innerHTML = html;
+
+    if (selectedStoreId && stores.some(s => s.storeid === selectedStoreId)) {
+        renderStoreDetail(selectedStoreId);
+        document.getElementById('storeDetailPanel').style.display = 'block';
+    } else if (stores.length > 0 && !selectedStoreId) {
+        selectStore(stores[0].storeid);
+    } else {
+        document.getElementById('storeDetailPanel').style.display = 'none';
+    }
+}
+
+function selectStore(storeId) {
+    selectedStoreId = storeId;
+    renderStoreButtons();
+    renderStoreDetail(storeId);
+    document.getElementById('storeDetailPanel').style.display = 'block';
+}
+
+function renderStoreDetail(storeId) {
+    const store = stores.find(s => s.storeid === storeId);
+    if (!store) return;
+
+    const storeTasks = tasks.filter(t => t.store === store.name);
+    const total = storeTasks.length;
+    const completed = storeTasks.filter(t => t.status?.toLowerCase() === 'completed').length;
+    const pending = storeTasks.filter(t => t.status?.toLowerCase() === 'pending').length;
+    const inProgress = storeTasks.filter(t => t.status?.toLowerCase() === 'in progress').length;
+    const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+    const overdue = storeTasks.filter(t => formatDate(t.duedate) < today && t.status?.toLowerCase() !== 'completed').length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const avgProgress = total > 0 ? Math.round(storeTasks.reduce((sum, t) => sum + (t.progress || 0), 0) / total) : 0;
+
+    document.getElementById('storeDetailName').textContent = store.name;
+    document.getElementById('storeTaskCount').textContent = `${total} tasks`;
+    document.getElementById('storeCompletionRate').textContent = `${completionRate}% complete`;
+    document.getElementById('storeStaffCount').textContent = [...new Set(storeTasks.map(t => t.assignedto || t.assignedTo).filter(Boolean))].length;
+
+    document.getElementById('storePending').textContent = pending;
+    document.getElementById('storeInProgress').textContent = inProgress;
+    document.getElementById('storeCompleted').textContent = completed;
+    document.getElementById('storeOverdue').textContent = overdue;
+    document.getElementById('storeAvgProgress').textContent = avgProgress + '%';
+
+    renderStoreCharts(storeTasks);
+    renderPerformance(storeTasks);
+    // reset page for store tasks
+    storeTaskPage = 1;
+    renderStoreTaskList(storeTasks);
+}
+
+function renderStoreCharts(storeTasks) {
+    const pending = storeTasks.filter(t => t.status?.toLowerCase() === 'pending').length;
+    const inProgress = storeTasks.filter(t => t.status?.toLowerCase() === 'in progress').length;
+    const completed = storeTasks.filter(t => t.status?.toLowerCase() === 'completed').length;
+    
+    const ctx1 = document.getElementById('storeStatusChart').getContext('2d');
+    if (currentStoreChart) currentStoreChart.destroy();
+    currentStoreChart = new Chart(ctx1, {
+        type: 'doughnut',
+        data: {
+            labels: ['Pending', 'In Progress', 'Completed'],
+            datasets: [{ data: [pending || 0, inProgress || 0, completed || 0], backgroundColor: ['#fbbf24', '#60a5fa', '#34d399'], borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }, title: { display: true, text: 'Status', font: { size: 10 } } }, cutout: '60%' }
+    });
+
+    const priorities = { High: 0, Medium: 0, Low: 0 };
+    storeTasks.forEach(t => { if (t.priority) priorities[t.priority] = (priorities[t.priority] || 0) + 1; });
+    const ctx2 = document.getElementById('storePriorityChart').getContext('2d');
+    if (currentStorePriorityChart) currentStorePriorityChart.destroy();
+    currentStorePriorityChart = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+            labels: ['High', 'Medium', 'Low'],
+            datasets: [{ data: [priorities.High || 0, priorities.Medium || 0, priorities.Low || 0], backgroundColor: ['#f87171', '#fbbf24', '#60a5fa'], borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }, title: { display: true, text: 'Priority', font: { size: 10 } } }, cutout: '60%' }
+    });
+
+    const progressRanges = { '0-20%': 0, '21-40%': 0, '41-60%': 0, '61-80%': 0, '81-100%': 0 };
+    storeTasks.forEach(t => {
+        const p = t.progress || 0;
+        if (p <= 20) progressRanges['0-20%']++;
+        else if (p <= 40) progressRanges['21-40%']++;
+        else if (p <= 60) progressRanges['41-60%']++;
+        else if (p <= 80) progressRanges['61-80%']++;
+        else progressRanges['81-100%']++;
+    });
+    const ctx3 = document.getElementById('storeProgressChart').getContext('2d');
+    if (currentStoreProgressChart) currentStoreProgressChart.destroy();
+    currentStoreProgressChart = new Chart(ctx3, {
+        type: 'bar',
+        data: {
+            labels: ['0-20%', '21-40%', '41-60%', '61-80%', '81-100%'],
+            datasets: [{
+                label: 'Tasks',
+                data: [progressRanges['0-20%'], progressRanges['21-40%'], progressRanges['41-60%'], progressRanges['61-80%'], progressRanges['81-100%']],
+                backgroundColor: ['#f87171', '#fb923c', '#fbbf24', '#60a5fa', '#34d399'],
+                borderRadius: 4
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            plugins: { legend: { display: false }, title: { display: true, text: 'Progress Distribution', font: { size: 10 } } },
+            scales: { x: { grid: { display: false }, ticks: { font: { size: 8 } } }, y: { grid: { display: false }, ticks: { font: { size: 8 } } } }
+        }
+    });
+}
+
+function renderPerformance(storeTasks) {
+    const container = document.getElementById('storePerformanceList');
+    const perfMap = {};
+    storeTasks.forEach(task => {
+        const name = task.assignedto || task.assignedTo || 'Unassigned';
+        if (!perfMap[name]) perfMap[name] = { total: 0, completed: 0, overdue: 0, inProgress: 0 };
+        perfMap[name].total++;
+        const status = task.status?.toLowerCase() || 'pending';
+        if (status === 'completed') perfMap[name].completed++;
+        else if (status === 'in progress') perfMap[name].inProgress++;
+        const due = formatDate(task.duedate);
+        const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
+        if (due && due < today && status !== 'completed') perfMap[name].overdue++;
+    });
+    const entries = Object.entries(perfMap);
+    if (!entries.length) {
+        container.innerHTML = '<div style="color:#5b4a7a;font-size:0.85rem;">No assignments yet</div>';
+        return;
+    }
+    let html = '';
+    entries.forEach(([name, stats]) => {
+        const rate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+        const color = rate >= 80 ? '#34d399' : rate >= 50 ? '#fbbf24' : '#f87171';
+        html += `<div class="perf-card">
+            <div class="perf-name"><i class="fas fa-user-circle"></i> ${name}</div>
+            <div class="perf-stats">
+                <span>📋 ${stats.total} tasks</span>
+                <span>✅ ${stats.completed} done</span>
+                <span>⏳ ${stats.inProgress} in progress</span>
+                <span>⚠️ ${stats.overdue} overdue</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.2rem;">
+                <div class="progress-container" style="flex:1;width:auto;"><div class="progress-bar" style="width:${rate}%;background:${color};"></div></div>
+                <span class="perf-rate" style="color:${color};">${rate}%</span>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+// (renderStoreTaskList is now defined above with pagination)
+
+// ========== OTHER CRUD FUNCTIONS ==========
 function renderStores() {
     const c = document.getElementById('storesContainer');
     if (!stores.length) { c.innerHTML = '<div class="empty-state"><i class="fas fa-store"></i><p>No stores</p></div>'; return; }
@@ -1151,7 +1468,6 @@ function renderCalendar() {
     }
     for (let day = 1; day <= daysInMonth; day++) {
         const dateObj = new Date(year, month, day);
-        // FIX: Use local date string instead of UTC
         const dateStr = dateObj.getFullYear() + '-' + String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + String(dateObj.getDate()).padStart(2, '0');
         const isToday = dateStr === todayStr;
         const dayTasks = tasks.filter(t => formatDate(t.duedate) === dateStr && t.status?.toLowerCase() !== 'completed');
@@ -1365,224 +1681,6 @@ async function updateStore(id) { const name = document.getElementById('editStore
 function showDeleteStore(id) { if (!verifyPassword()) return; if (confirm('Delete store?')) deleteStore(id); }
 async function deleteStore(id) { try { showLoading(true); await deleteStoreFromSheet(id); await loadData(); showToast('✅ Deleted', 'success'); } catch (e) { showToast('❌ ' + e.message, 'error'); } finally { showLoading(false); } }
 
-// ========== STORE VIEW ==========
-function renderStoreButtons() {
-    const grid = document.getElementById('storeButtonGrid');
-    if (!stores.length) {
-        grid.innerHTML = '<div class="empty-state"><i class="fas fa-store"></i><p>No stores available</p></div>';
-        document.getElementById('storeDetailPanel').style.display = 'none';
-        return;
-    }
-    let html = '';
-    stores.forEach(store => {
-        const storeTasks = tasks.filter(t => t.store === store.name);
-        const activeCount = storeTasks.filter(t => t.status?.toLowerCase() !== 'completed').length;
-        const totalCount = storeTasks.length;
-        const isActive = selectedStoreId === store.storeid;
-        html += `<button class="store-btn ${isActive ? 'active' : ''}" onclick="selectStore('${store.storeid}')">
-            <i class="fas fa-store"></i> ${store.name}
-            <span class="badge-count">${activeCount}/${totalCount}</span>
-        </button>`;
-    });
-    grid.innerHTML = html;
-
-    if (selectedStoreId && stores.some(s => s.storeid === selectedStoreId)) {
-        renderStoreDetail(selectedStoreId);
-        document.getElementById('storeDetailPanel').style.display = 'block';
-    } else if (stores.length > 0 && !selectedStoreId) {
-        selectStore(stores[0].storeid);
-    } else {
-        document.getElementById('storeDetailPanel').style.display = 'none';
-    }
-}
-
-function selectStore(storeId) {
-    selectedStoreId = storeId;
-    renderStoreButtons();
-    renderStoreDetail(storeId);
-    document.getElementById('storeDetailPanel').style.display = 'block';
-}
-
-function renderStoreDetail(storeId) {
-    const store = stores.find(s => s.storeid === storeId);
-    if (!store) return;
-
-    const storeTasks = tasks.filter(t => t.store === store.name);
-    const total = storeTasks.length;
-    const completed = storeTasks.filter(t => t.status?.toLowerCase() === 'completed').length;
-    const pending = storeTasks.filter(t => t.status?.toLowerCase() === 'pending').length;
-    const inProgress = storeTasks.filter(t => t.status?.toLowerCase() === 'in progress').length;
-    const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
-    const overdue = storeTasks.filter(t => formatDate(t.duedate) < today && t.status?.toLowerCase() !== 'completed').length;
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
-    const avgProgress = total > 0 ? Math.round(storeTasks.reduce((sum, t) => sum + (t.progress || 0), 0) / total) : 0;
-
-    document.getElementById('storeDetailName').textContent = store.name;
-    document.getElementById('storeTaskCount').textContent = `${total} tasks`;
-    document.getElementById('storeCompletionRate').textContent = `${completionRate}% complete`;
-    document.getElementById('storeStaffCount').textContent = [...new Set(storeTasks.map(t => t.assignedto || t.assignedTo).filter(Boolean))].length;
-
-    document.getElementById('storePending').textContent = pending;
-    document.getElementById('storeInProgress').textContent = inProgress;
-    document.getElementById('storeCompleted').textContent = completed;
-    document.getElementById('storeOverdue').textContent = overdue;
-    document.getElementById('storeAvgProgress').textContent = avgProgress + '%';
-
-    renderStoreCharts(storeTasks);
-    renderPerformance(storeTasks);
-    renderStoreTaskList(storeTasks);
-}
-
-function renderStoreCharts(storeTasks) {
-    // Chart 1: Status Distribution (Doughnut)
-    const pending = storeTasks.filter(t => t.status?.toLowerCase() === 'pending').length;
-    const inProgress = storeTasks.filter(t => t.status?.toLowerCase() === 'in progress').length;
-    const completed = storeTasks.filter(t => t.status?.toLowerCase() === 'completed').length;
-    
-    const ctx1 = document.getElementById('storeStatusChart').getContext('2d');
-    if (currentStoreChart) currentStoreChart.destroy();
-    currentStoreChart = new Chart(ctx1, {
-        type: 'doughnut',
-        data: {
-            labels: ['Pending', 'In Progress', 'Completed'],
-            datasets: [{ data: [pending || 0, inProgress || 0, completed || 0], backgroundColor: ['#fbbf24', '#60a5fa', '#34d399'], borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }, title: { display: true, text: 'Status', font: { size: 10 } } }, cutout: '60%' }
-    });
-
-    // Chart 2: Priority Distribution (Doughnut)
-    const priorities = { High: 0, Medium: 0, Low: 0 };
-    storeTasks.forEach(t => { if (t.priority) priorities[t.priority] = (priorities[t.priority] || 0) + 1; });
-    const ctx2 = document.getElementById('storePriorityChart').getContext('2d');
-    if (currentStorePriorityChart) currentStorePriorityChart.destroy();
-    currentStorePriorityChart = new Chart(ctx2, {
-        type: 'doughnut',
-        data: {
-            labels: ['High', 'Medium', 'Low'],
-            datasets: [{ data: [priorities.High || 0, priorities.Medium || 0, priorities.Low || 0], backgroundColor: ['#f87171', '#fbbf24', '#60a5fa'], borderWidth: 1, borderColor: 'rgba(255,255,255,0.5)' }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 9 } } }, title: { display: true, text: 'Priority', font: { size: 10 } } }, cutout: '60%' }
-    });
-
-    // Chart 3: Progress Distribution (Horizontal Bar Chart)
-    const progressRanges = {
-        '0-20%': 0,
-        '21-40%': 0,
-        '41-60%': 0,
-        '61-80%': 0,
-        '81-100%': 0
-    };
-    storeTasks.forEach(t => {
-        const p = t.progress || 0;
-        if (p <= 20) progressRanges['0-20%']++;
-        else if (p <= 40) progressRanges['21-40%']++;
-        else if (p <= 60) progressRanges['41-60%']++;
-        else if (p <= 80) progressRanges['61-80%']++;
-        else progressRanges['81-100%']++;
-    });
-    const ctx3 = document.getElementById('storeProgressChart').getContext('2d');
-    if (currentStoreProgressChart) currentStoreProgressChart.destroy();
-    currentStoreProgressChart = new Chart(ctx3, {
-        type: 'bar',
-        data: {
-            labels: ['0-20%', '21-40%', '41-60%', '61-80%', '81-100%'],
-            datasets: [{
-                label: 'Tasks',
-                data: [progressRanges['0-20%'], progressRanges['21-40%'], progressRanges['41-60%'], progressRanges['61-80%'], progressRanges['81-100%']],
-                backgroundColor: ['#f87171', '#fb923c', '#fbbf24', '#60a5fa', '#34d399'],
-                borderRadius: 4
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                title: { display: true, text: 'Progress Distribution', font: { size: 10 } }
-            },
-            scales: {
-                x: { grid: { display: false }, ticks: { font: { size: 8 } } },
-                y: { grid: { display: false }, ticks: { font: { size: 8 } } }
-            }
-        }
-    });
-}
-
-function renderPerformance(storeTasks) {
-    const container = document.getElementById('storePerformanceList');
-    const perfMap = {};
-    storeTasks.forEach(task => {
-        const name = task.assignedto || task.assignedTo || 'Unassigned';
-        if (!perfMap[name]) perfMap[name] = { total: 0, completed: 0, overdue: 0, inProgress: 0 };
-        perfMap[name].total++;
-        const status = task.status?.toLowerCase() || 'pending';
-        if (status === 'completed') perfMap[name].completed++;
-        else if (status === 'in progress') perfMap[name].inProgress++;
-        const due = formatDate(task.duedate);
-        const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
-        if (due && due < today && status !== 'completed') perfMap[name].overdue++;
-    });
-
-    const entries = Object.entries(perfMap);
-    if (!entries.length) {
-        container.innerHTML = '<div style="color:#5b4a7a;font-size:0.85rem;">No assignments yet</div>';
-        return;
-    }
-
-    let html = '';
-    entries.forEach(([name, stats]) => {
-        const rate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
-        const color = rate >= 80 ? '#34d399' : rate >= 50 ? '#fbbf24' : '#f87171';
-        html += `<div class="perf-card">
-            <div class="perf-name"><i class="fas fa-user-circle"></i> ${name}</div>
-            <div class="perf-stats">
-                <span>📋 ${stats.total} tasks</span>
-                <span>✅ ${stats.completed} done</span>
-                <span>⏳ ${stats.inProgress} in progress</span>
-                <span>⚠️ ${stats.overdue} overdue</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.2rem;">
-                <div class="progress-container" style="flex:1;width:auto;"><div class="progress-bar" style="width:${rate}%;background:${color};"></div></div>
-                <span class="perf-rate" style="color:${color};">${rate}%</span>
-            </div>
-        </div>`;
-    });
-    container.innerHTML = html;
-}
-
-function renderStoreTaskList(storeTasks) {
-    const container = document.getElementById('storeTaskList');
-    if (!storeTasks.length) {
-        container.innerHTML = '<div class="empty-state"><i class="fas fa-list"></i><p>No tasks for this store</p></div>';
-        return;
-    }
-    const sorted = [...storeTasks].sort((a, b) => {
-        const aC = a.status?.toLowerCase() === 'completed' ? 1 : 0;
-        const bC = b.status?.toLowerCase() === 'completed' ? 1 : 0;
-        if (aC !== bC) return aC - bC;
-        return 0;
-    });
-    let html = '<div class="table-container"><table><thead><tr><th>Title</th><th>Assigned</th><th>Priority</th><th>Due</th><th>Status</th><th>Progress</th><th>Remarks</th><th>Update</th></tr></thead><tbody>';
-    const today = new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0');
-    sorted.forEach(task => {
-        const id = getTaskId(task);
-        const due = formatDate(task.duedate);
-        const overdue = due && due < today && task.status?.toLowerCase() !== 'completed';
-        html += `<tr class="${overdue ? 'overdue' : ''}">
-            <td>${task.title || ''}</td>
-            <td>${task.assignedto || task.assignedTo || ''}</td>
-            <td class="priority-${(task.priority || '').toLowerCase()}">${task.priority || ''}</td>
-            <td class="${overdue ? 'due-date' : ''}">${due || ''}</td>
-            <td><span class="badge badge-${(task.status || 'pending').toLowerCase().replace(' ', '-')}">${task.status || 'Pending'}</span></td>
-            <td><div class="progress-container"><div class="progress-bar" style="width:${task.progress || 0}%;background:${(task.progress || 0) === 100 ? '#34d399' : '#667eea'}"></div></div> ${task.progress || 0}%</td>
-            <td>${task.remarks || '-'}</td>
-            <td><button class="btn btn-primary btn-sm" onclick="showUpdateTask('${id}')"><i class="fas fa-pen"></i></button></td>
-        </tr>`;
-    });
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-}
-
 // ========== FILTERS ==========
 function setTaskFilter(filter) {
     currentTaskFilter = filter;
@@ -1590,10 +1688,11 @@ function setTaskFilter(filter) {
     const map = { all: 'filterAll', active: 'filterActive', completed: 'filterCompleted' };
     const el = document.getElementById(map[filter]);
     if (el) el.classList.add('active');
-    renderAllTasks();
+    taskPage = 1;
+    renderAllTasksPaginated();
 }
-function filterTasks() { const s = document.getElementById('searchInput').value.toLowerCase().trim(); searchTerm = s; filteredTasks = s ? tasks.filter(t => (t.title || '').toLowerCase().includes(s) || (t.store || '').toLowerCase().includes(s) || (t.assignedto || t.assignedTo || '').toLowerCase().includes(s)) : tasks; renderAllTasks(); }
-function clearFilter() { document.getElementById('searchInput').value = ''; searchTerm = ''; filteredTasks = []; renderAllTasks(); }
+function filterTasks() { const s = document.getElementById('searchInput').value.toLowerCase().trim(); searchTerm = s; filteredTasks = s ? tasks.filter(t => (t.title || '').toLowerCase().includes(s) || (t.store || '').toLowerCase().includes(s) || (t.assignedto || t.assignedTo || '').toLowerCase().includes(s)) : tasks; taskPage = 1; renderAllTasksPaginated(); }
+function clearFilter() { document.getElementById('searchInput').value = ''; searchTerm = ''; filteredTasks = []; taskPage = 1; renderAllTasksPaginated(); }
 function switchAdminTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -1626,7 +1725,7 @@ document.getElementById('modal').addEventListener('click', function (e) { if (e.
 setTimeout(requestNotificationPermission, 1000);
 loadData();
 setInterval(loadData, 60000);
-console.log('✅ TaskFlow loaded. Store View now has 3 chart types: Doughnut (status), Doughnut (priority), Horizontal Bar (progress distribution).');
+console.log('✅ TaskFlow loaded. Pagination added to Tasks, Manager, and Store View task lists.');
 </script>
 </body>
 </html>
